@@ -11,7 +11,6 @@ public class SceneManager : MonoBehaviour
 
     [Header("References")]
     public Texture2D cursor;
-    public GameObject cursorObject;
 
     [Header("Button events")]
     public ButtonAllClick resumeButton;
@@ -43,9 +42,8 @@ public class SceneManager : MonoBehaviour
     void Start()
     {
         // Set the cursor origin to its centre. (default is upper left corner)
-        //Vector2 cursorOffset = new Vector2(cursor.width / 2, cursor.height / 2);
-        //Cursor.SetCursor(cursor, cursorOffset, CursorMode.Auto);
-        Cursor.visible = false;
+        Vector2 cursorOffset = new Vector2(cursor.width / 2, cursor.height / 2);
+        Cursor.SetCursor(cursor, cursorOffset, CursorMode.Auto);
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -53,7 +51,7 @@ public class SceneManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        cursorObject.transform.position = LevelManager.levelManager.pixelMousePosition + LevelManager.levelManager.pixelOffset * 2;
+        //cursorObject.transform.position = LevelManager.levelManager.pixelMousePosition + LevelManager.levelManager.pixelOffset * 2;
 
         timeSincePause += Time.unscaledDeltaTime;
 
@@ -94,13 +92,13 @@ public class SceneManager : MonoBehaviour
                 updatePauseNext = false;
                 break;
         }
-        
+        /*
         switch (Vector2.Distance(PlayerController.playerController.playerObject.transform.position, Manager.manager.endPosition.transform.position) < Manager.manager.gameEndDistance)
         {
             case true:
                 ToggleEnd();
                 break;
-        }
+        }*/
 
         // Use time dilation magic for a smooth time change
         currentTimescale = Mathf.Lerp(currentTimescale, pauseTimeTarget, timeSincePause / 4);
@@ -109,9 +107,9 @@ public class SceneManager : MonoBehaviour
     }
 
     // -----------------------------------------------------------------------------------------------------
-
+    
     public void RestartGame()
-    {
+    {/*
         ResumeGame();
 
         // Make us respawn at the beginning
@@ -120,9 +118,9 @@ public class SceneManager : MonoBehaviour
         GUIManager.guiManager.endGroup.FadeTo(0.0f, 4.0f);
         Manager.manager.smoothCamera.CameraShake(1.0f, 10);
 
-        PlayerController.playerController.Respawn();
+        PlayerController.playerController.Respawn();*/
     }
-
+    
     // -----------------------------------------------------------------------------------------------------
 
     public void PauseGame(bool showScreen)

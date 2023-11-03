@@ -67,7 +67,7 @@ public class GUIManager : MonoBehaviour
 
     // Update is called once per frame
     void Update()
-    {
+    {/*
         switch (LevelManager.levelManager.simulationMode)
         {
             // Skip this shit if editing
@@ -83,7 +83,7 @@ public class GUIManager : MonoBehaviour
                 onwards.CrossFadeAlpha(0, 0, true);
                 break;
         }
-
+        */
         switch (gameStarted)
         {
             // Only do these check if the game has not started yet
