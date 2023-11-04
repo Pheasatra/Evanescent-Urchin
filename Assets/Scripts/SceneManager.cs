@@ -11,12 +11,12 @@ public class SceneManager : MonoBehaviour
 
     [Header("References")]
     public Texture2D cursor;
-
+    /*
     [Header("Button events")]
     public ButtonAllClick resumeButton;
     public ButtonAllClick settingsButton;
     public ButtonAllClick closeSettingsButton;
-
+    */
     [Space(10)]
 
     public bool endSoundDone = false;
@@ -54,8 +54,8 @@ public class SceneManager : MonoBehaviour
         //cursorObject.transform.position = LevelManager.levelManager.pixelMousePosition + LevelManager.levelManager.pixelOffset * 2;
 
         timeSincePause += Time.unscaledDeltaTime;
-
-        switch (Input.GetKeyDown(KeyCode.Escape)/* && manager.playerAlive == true*/)
+        /*
+        switch (Input.GetKeyDown(KeyCode.Escape))
         {
             case true:
                 timeSincePause = 0;
@@ -91,7 +91,7 @@ public class SceneManager : MonoBehaviour
 
                 updatePauseNext = false;
                 break;
-        }
+        }*/
         /*
         switch (Vector2.Distance(PlayerController.playerController.playerObject.transform.position, Manager.manager.endPosition.transform.position) < Manager.manager.gameEndDistance)
         {
@@ -124,7 +124,7 @@ public class SceneManager : MonoBehaviour
     // -----------------------------------------------------------------------------------------------------
 
     public void PauseGame(bool showScreen)
-    {
+    {/*
         // Fade in
         switch (showScreen)
         {
@@ -133,19 +133,19 @@ public class SceneManager : MonoBehaviour
                 break;
         }
 
-        pauseTimeTarget = 0.0f;
+        pauseTimeTarget = 0.0f;*/
     }
 
     // -----------------------------------------------------------------------------------------------------
 
     public void ResumeGame()
-    {
+    {/*
         // Fade out
         GUIManager.guiManager.pauseGroup.FadeTo(0.0f, 4.0f);
         pauseTimeTarget = 1.0f;
 
         // Also close the setting menu if that was open
-        CloseSettings();
+        CloseSettings();*/
     }
 
     // -----------------------------------------------------------------------------------------------------
