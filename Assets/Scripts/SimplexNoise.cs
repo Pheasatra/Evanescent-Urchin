@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 //-----------------------------------------------------------------------
@@ -38,6 +39,7 @@ public class SimplexNoise
 
     //-----------------------------------------------------------------------
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Setup()
     {
         // Simplex Setup
@@ -53,6 +55,8 @@ public class SimplexNoise
 
     //-----------------------------------------------------------------------
 
+    // Way too big for this
+    //[MethodImpl(MethodImplOptions.AggressiveInlining)]
     public float SimplexNoise3D(float x, float y, float z)
     {
         float n0, n1, n2, n3; // Noise contributions from the four corners
@@ -213,6 +217,7 @@ public class SimplexNoise
 
     //-----------------------------------------------------------------------
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     // This method is a *lot* faster than using (int)Math.floor(x)
     public int FastFloor(float x)
     {
@@ -222,6 +227,7 @@ public class SimplexNoise
 
     //-----------------------------------------------------------------------
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float Dot(Grad grad, float x, float y, float z)
     {
         return grad.x * x + grad.y * y + grad.z * z;
@@ -233,6 +239,7 @@ public class SimplexNoise
     {
         public float x, y, z;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Grad(float x, float y, float z)
         {
             this.x = x;
