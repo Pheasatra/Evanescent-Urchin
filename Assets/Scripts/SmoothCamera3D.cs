@@ -17,17 +17,16 @@ public class SmoothCamera3D : MonoBehaviour
     public float sensitivityX = 15f;
     public float sensitivityY = 15f;
 
-    [Space(10)]
-
-    public float minimumX = -360f;
-    public float maximumX = 360f;
+    float currentSensitivityX = 0;
+    float currentSensitivityY = 0;
 
     [Space(10)]
 
     public float minimumY = -60f;
     public float maximumY = 60f;
 
-    float rotationY = 0f;
+    float nextRotationX = 0f;
+    float nextRotationY = 0f;
 
     [Header("Zoom")]
     public float baseFov = 60.0f;
@@ -45,12 +44,12 @@ public class SmoothCamera3D : MonoBehaviour
     public float rotationStiffness = 10.0f;
 
     [Header("Screen Shake")]
-    public List<Shake> shakes = new List<Shake>();
+    public float totalShake;
+    public float totalIntensity;
 
     [Space(10)]
 
-    public float totalShake;
-    public float totalIntensity;
+    private List<Shake> shakes = new List<Shake>();
 
     [Space(10)]
 
@@ -62,7 +61,9 @@ public class SmoothCamera3D : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        
+        // Set our initial rotations so we can rotate things in the inspector
+        nextRotationX = transform.localEulerAngles.x;
+        nextRotationY = transform.localEulerAngles.y;
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -93,6 +94,7 @@ public class SmoothCamera3D : MonoBehaviour
 
     // -----------------------------------------------------------------------------------------------------
 
+    /// <summary> Based on key input, Zooms the camera by changing FOV and sensitivity </summary>
     private void ManageFarZoom()
     {
         switch (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))
@@ -101,11 +103,17 @@ public class SmoothCamera3D : MonoBehaviour
             case true:
                 // Halving the FOV doubles the magnification
                 currentFov = baseFov / magnification;
+
+                currentSensitivityX = sensitivityX / magnification;
+                currentSensitivityY = sensitivityY / magnification;
                 break;
 
             // Set FOV to normal 
             case false:
                 currentFov = baseFov;
+
+                currentSensitivityX = sensitivityX;
+                currentSensitivityY = sensitivityY;
                 break;
         }
 
@@ -115,20 +123,28 @@ public class SmoothCamera3D : MonoBehaviour
 
     // -----------------------------------------------------------------------------------------------------
 
+    /// <summary> Based on mousepad inputs, rotates the camera smoothly </summary>
     private void ManageRotation()
     {
-        float rotationX = transform.eulerAngles.y + Input.GetAxis("Mouse X") * sensitivityX;
+        // Get mouse inputs multiplied by sensitivity
+        nextRotationX += Input.GetAxis("Mouse X") * currentSensitivityX;
+        nextRotationY += Input.GetAxis("Mouse Y") * currentSensitivityY;
 
-        rotationY += Input.GetAxis("Mouse Y") * sensitivityY;
-        rotationY = Mathf.Clamp(rotationY, minimumY, maximumY);
+        // Clamp Y so we don't go australian in this bitch
+        nextRotationY = Mathf.Clamp(nextRotationY, minimumY, maximumY);
 
+        // Produces in-between rotations for when there is no input this frame (Low keyboard update rate) and when input fully stops (Smoothes camera at start and destination)
+        // We can also use localEulerAngles here, but Quanterions reduce the risk of gimbal lock
+        transform.rotation = Quaternion.Lerp(Quaternion.Euler(transform.eulerAngles.x, transform.eulerAngles.y, 0), Quaternion.Euler(-nextRotationY, nextRotationX, 0), rotationStiffness * Time.deltaTime);
+
+        // Less useful / functional alternatives down here
         //transform.localEulerAngles = new Vector3(-rotationY, rotationX, 0);
-
-        transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(-rotationY, rotationX, 0), rotationStiffness * Time.deltaTime);
+        //transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(-nextRotationY, nextRotationX, 0), rotationStiffness * Time.deltaTime);
     }
 
     // -----------------------------------------------------------------------------------------------------
 
+    /// <summary> Sums all of the shakes added to the camera, Removes completed ones and adds the final summed shake for this frame </summary>
     private void ManageShakes()
     {
         totalShake = 0.0f;
@@ -160,6 +176,7 @@ public class SmoothCamera3D : MonoBehaviour
 
     // -----------------------------------------------------------------------------------------------------
 
+    /// <summary> Adds a shake to the camera of a specific length and intensity </summary>
     public void CameraShake(float duration, float intensity)
     {
         shakes.Add(new Shake(duration * Manager.manager.screenShakeMultiplyer, intensity * Manager.manager.screenShakeMultiplyer));
@@ -168,6 +185,7 @@ public class SmoothCamera3D : MonoBehaviour
 
 // -----------------------------------------------------------------------------------------------------
 
+/// <summary> A shake, this holds the remaining duration and the intensity of a shake </summary>
 public class Shake
 {
     public float duration;

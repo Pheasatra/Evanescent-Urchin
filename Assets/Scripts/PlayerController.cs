@@ -66,7 +66,7 @@ public class PlayerController : MonoBehaviour
         {
             // Forward movement
             case true:
-                playerRigidbody.AddForce(currentThrust * Vector3.forward, ForceMode.Force);
+                playerRigidbody.AddForce(currentThrust * Camera.main.transform.forward, ForceMode.Force);
                 break;
         }
 
@@ -74,7 +74,7 @@ public class PlayerController : MonoBehaviour
         {
             // Backwards movement
             case true:
-                playerRigidbody.AddForce(currentThrust * Vector3.back, ForceMode.Force);
+                playerRigidbody.AddForce(currentThrust * -Camera.main.transform.forward, ForceMode.Force);
                 break;
         }
 
@@ -84,7 +84,7 @@ public class PlayerController : MonoBehaviour
         {
             // Left strafe
             case true:
-                playerRigidbody.AddForce(currentThrust * Vector3.left, ForceMode.Force);
+                playerRigidbody.AddForce(currentThrust * -Camera.main.transform.right, ForceMode.Force);
                 break;
         }
 
@@ -92,7 +92,25 @@ public class PlayerController : MonoBehaviour
         {
             // Right strafe
             case true:
-                playerRigidbody.AddForce(currentThrust * Vector3.right, ForceMode.Force);
+                playerRigidbody.AddForce(currentThrust * Camera.main.transform.right, ForceMode.Force);
+                break;
+        }
+
+        // --- Up Down ---
+
+        switch (Input.GetKey(KeyCode.Space))
+        {
+            // Up strafe
+            case true:
+                playerRigidbody.AddForce(currentThrust * Camera.main.transform.up, ForceMode.Force);
+                break;
+        }
+
+        switch (Input.GetKey(KeyCode.LeftShift))
+        {
+            // Down strafe
+            case true:
+                playerRigidbody.AddForce(currentThrust * -Camera.main.transform.up, ForceMode.Force);
                 break;
         }
 
@@ -110,7 +128,7 @@ public class PlayerController : MonoBehaviour
         {
             // Roll Right
             case true:
-                playerRigidbody.AddForce(rollTorque * Vector3.right, ForceMode.Force);
+                playerRigidbody.AddTorque(rollTorque * Vector3.right, ForceMode.Force);
                 break;
         }
     }
