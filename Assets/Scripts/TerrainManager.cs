@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 // -----------------------------------------------------------------------------------------------------
@@ -16,7 +17,7 @@ public class TerrainManager : MonoBehaviour
     // Where all our inactive chunks are stored
     public ChunkPool chunkPool;
 
-    public List<Block> blockVariants = new List<Block>();
+    //public List<Block> blockVariants = new List<Block>();
 
     [Header("Seeds")]
     public int seedRange = 32767;
@@ -41,18 +42,20 @@ public class TerrainManager : MonoBehaviour
     public float scale = 0.075f;
     public float amplitude = 1.0f;
     public float frequency = 1.0f;
+    public float waveSpeed = 1.0f;
 
+    [Space(10)]
+
+    public float subScale = 1.0f;
     public float persistance = 1.0f;
     public float lacunarity = 1.0f;
+    public float waveScale = 1.0f;
 
     public Vector3[] octaveOffsets;
 
     [Space(10)]
 
     public float visiblityLimit = 0.5f;
-
-    public Vector3 offset = new Vector3(0.25f, 0.25f, 0.25f);
-    public Vector3[] octaveSeeds;
 
     [Header("Chunks")]
     public float chunkUnitSize = 16;
@@ -153,36 +156,34 @@ public class TerrainManager : MonoBehaviour
         // For all positions in our render distance
         for (int x = -currentRenderDistance; x < currentRenderDistance; x++)
         {
-            for (int y = -currentRenderDistance; y < currentRenderDistance; y++)
+            for (int z = -currentRenderDistance; z < currentRenderDistance; z++)
             {
-                for (int z = -currentRenderDistance; z < currentRenderDistance; z++)
+                // Compare the (x, y, z).magnitude to the current render distance, this is the same as distance < current render distance (Think of magnitude as the length of a line)
+                // This allows us to avoid using Vector2Int.Distance and is much more elegant
+                rawChunkKey = new Vector3Int(x, 0, z);
+                distance = rawChunkKey.magnitude;
+
+                switch (distance < currentRenderDistance)
                 {
-                    // Compare the (x, y, z).magnitude to the current render distance, this is the same as distance < current render distance (Think of magnitude as the length of a line)
-                    // This allows us to avoid using Vector2Int.Distance and is much more elegant
-                    rawChunkKey = new Vector3Int(x, y, z);
-                    distance = rawChunkKey.magnitude;
-
-                    switch (distance < currentRenderDistance)
-                    {
-                        // If distance between the chunk and target is larger than renderDistance then skip to the next chunk key
-                        case false:
-                            continue;
-                    }
-
-                    // Combine our camera chunk position with the chunk position
-                    chunkKey = cameraChunkIndex + rawChunkKey;
-
-                    chunk = GetChunk(chunkKey);
-
-                    switch (chunk)
-                    {
-                        // If this chunk already exists then skip this
-                        case not null:
-                            continue;
-                    }
-
-                    SpawnChunk(chunkKey, baseChunkSize, chunkUnitSize);
+                    // If distance between the chunk and target is larger than renderDistance then skip to the next chunk key
+                    case false:
+                        continue;
                 }
+
+                // Combine our camera chunk position with the chunk position
+                chunkKey = cameraChunkIndex + rawChunkKey;
+                chunkKey = new Vector3Int(cameraChunkIndex.x, 0, cameraChunkIndex.z) + rawChunkKey;
+
+                chunk = GetChunk(chunkKey);
+
+                switch (chunk)
+                {
+                    // If this chunk already exists then skip this
+                    case not null:
+                        continue;
+                }
+
+                SpawnChunk(chunkKey, baseChunkSize, chunkUnitSize);
             }
         }
 
@@ -205,6 +206,40 @@ public class TerrainManager : MonoBehaviour
             // Pool this chunk by inputing its dictionary key
             PoolChunk(keys[x]);
         }
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+
+    /// <summary> Generates Simplex noise in octaves </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public float OctaveSimplex3D(float x, float y, float z)
+    {
+        float output = 0;
+
+        float currentScale = scale;
+        float currentAmplitude = amplitude;
+        float currentFrequency = frequency;
+        float currentWaveSpeed = waveSpeed;
+
+        //Loop through all octaves.
+        for (int i = 0; i < octaves; i++)
+        {
+            float waveOffset = Time.timeSinceLevelLoad * currentWaveSpeed;
+
+            // !!!! OPTIMISE removes repeated calculations
+            float xCoord = (x + xSeed) / currentScale * currentFrequency + octaveOffsets[i].x + waveOffset;
+            float yCoord = (y + ySeed) / currentScale * currentFrequency + octaveOffsets[i].y + waveOffset;
+            float zCoord = (z + zSeed) / currentScale * currentFrequency + octaveOffsets[i].z + waveOffset;
+
+            output += simplexNoise.SimplexNoise3D(xCoord, yCoord, zCoord) * currentAmplitude;
+
+            currentScale *= subScale;
+            currentAmplitude *= persistance;
+            currentFrequency *= lacunarity;
+            currentWaveSpeed /= waveScale;
+        }
+
+        return output;
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -251,12 +286,11 @@ public class TerrainManager : MonoBehaviour
 
         chunk.xChunk = chunkKey.x;
         chunk.yChunk = chunkKey.y;
-        chunk.zChunk = chunkKey.z;
 
         chunk.chunkSize = chunkSize;
         chunk.chunkUnitSize = chunkUnitSize;
 
-        chunk.blockMemory = new Block[chunkSize * chunkSize * chunkSize];
+        chunk.noiseMemory = new float[chunkSize * chunkSize];
 
         chunks.Add(chunkKey, chunk);
 

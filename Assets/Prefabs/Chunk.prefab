@@ -52,14 +52,14 @@ MonoBehaviour:
   textureRatio: 0.125
   xChunk: 0
   yChunk: 0
-  zChunk: 0
   totalFaces: 0
   totalTriangles: 0
   chunkSize: 0
   chunkUnitSize: 0
-  blockMemory: []
+  noiseMemory: []
   vertices: []
   uvs: []
+  colours: []
   triangles: 
   debug: []
   debug2: []

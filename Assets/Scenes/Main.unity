@@ -2041,26 +2041,26 @@ MonoBehaviour:
   chunkPrefab: {fileID: 7163117460809693351, guid: a8c1e66d49054bd4185e3c7d72550fcd,
     type: 3}
   chunkPool: {fileID: 845988333}
-  blockVariants: []
-  seedRange: 32767
-  manualSeeds: 0
+  seedRange: 16384
+  manualSeeds: 1
   worldSeed: 0
   xSeed: 0
   ySeed: 0
   zSeed: 0
-  octaves: 0
-  scale: 0.075
-  amplitude: 1
-  frequency: 1
-  persistance: 1
-  lacunarity: 1
+  octaves: 4
+  scale: 20
+  amplitude: 2
+  frequency: 0.1
+  waveSpeed: 1
+  subScale: 1
+  persistance: 0.5
+  lacunarity: 2
+  waveScale: 1
   octaveOffsets: []
-  visiblityLimit: 0.5
-  offset: {x: 0.25, y: 0.25, z: 0.25}
-  octaveSeeds: []
-  chunkUnitSize: 16
+  visiblityLimit: 0
+  chunkUnitSize: 1
   baseChunkSize: 16
-  renderDistance: 4
+  renderDistance: 2
   cameraChunkIndex: {x: 0, y: 0, z: 0}
   currentRenderDistance: 0
 --- !u!1 &1165111984
