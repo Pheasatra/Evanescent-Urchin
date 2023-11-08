@@ -9,9 +9,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8836408525437178606}
-  - component: {fileID: 4012252151471719616}
-  - component: {fileID: 2180717618984053722}
   - component: {fileID: 2197963763719182769}
+  - component: {fileID: 2180717618984053722}
+  - component: {fileID: 4012252151471719616}
   m_Layer: 0
   m_Name: Chunk
   m_TagString: Untagged
@@ -34,43 +34,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4012252151471719616
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7163117460809693351}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4ec6368b2f5d7674195d211445c3de78, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  terrainManager: {fileID: 0}
-  mesh: {fileID: 0}
-  meshFilter: {fileID: 0}
-  textureRatio: 0.125
-  xChunk: 0
-  yChunk: 0
-  totalFaces: 0
-  totalTriangles: 0
-  chunkSize: 0
-  chunkUnitSize: 0
-  noiseMemory: []
-  vertices: []
-  uvs: []
-  colours: []
-  triangles: 
-  debug: []
-  debug2: []
---- !u!33 &2180717618984053722
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7163117460809693351}
-  m_Mesh: {fileID: 0}
 --- !u!23 &2197963763719182769
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -113,3 +76,41 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &2180717618984053722
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7163117460809693351}
+  m_Mesh: {fileID: 0}
+--- !u!114 &4012252151471719616
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7163117460809693351}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ec6368b2f5d7674195d211445c3de78, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  terrainManager: {fileID: 0}
+  mesh: {fileID: 0}
+  meshFilter: {fileID: 2180717618984053722}
+  textureRatio: 0.125
+  xChunk: 0
+  yChunk: 0
+  totalFaces: 0
+  totalTriangles: 0
+  chunkSize: 0
+  chunkUnitSize: 0
+  lodDistance: 0
+  noiseMemory: []
+  vertices: []
+  uvs: []
+  colours: []
+  triangles: 
+  debug: []
+  debug2: []

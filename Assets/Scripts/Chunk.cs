@@ -11,6 +11,7 @@ public class Chunk : MonoBehaviour
 {
     [Header("References")]
     public TerrainManager terrainManager;
+
     public Mesh mesh;
     public MeshFilter meshFilter;
 
@@ -32,6 +33,8 @@ public class Chunk : MonoBehaviour
 
     public int chunkSize = 0;
     public float chunkUnitSize = 0;
+
+    public int lodDistance = 0;
 
     public float[] noiseMemory; 
 
@@ -59,6 +62,8 @@ public class Chunk : MonoBehaviour
 
         meshFilter = GetComponent<MeshFilter>();
         meshFilter.mesh = mesh;
+
+        GenerateMesh();
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -84,7 +89,7 @@ public class Chunk : MonoBehaviour
     // For refreshing things that change between chunks
     public void Reload()
     {
-        GenerateMesh();
+        //GenerateMesh();
     }    
     
     // -----------------------------------------------------------------------------------------------------
@@ -100,7 +105,7 @@ public class Chunk : MonoBehaviour
             // Use the 2d version, its far faster
             // !!!! https://github.com/WardBenjamin/SimplexNoise/blob/master/SimplexNoise/Noise.cs
 
-            index2D = Index1Dto2D(x);
+            index2D = Index1Dto2D(x, chunkSize);
             noiseMemory[x] = terrainManager.OctaveSimplex3D(index2D.x + transform.position.x * chunkUnitSize, index2D.y + transform.position.y * chunkUnitSize, 0);
             /*
             switch (noise > terrainManager.visiblityLimit)
@@ -113,62 +118,74 @@ public class Chunk : MonoBehaviour
 
     // -----------------------------------------------------------------------------------------------------
 
+    /// <summary> Takes a flattened 2D array and scales it up or down depending on the new size variables, this duplicates the variables inside too so they fit snug into the new array </summary>
+    public int[] ScaleArray(int[] originalArray, int originalSize, int newSize)
+    {
+        int[] scaledArray = new int[newSize * newSize];
+
+        // Get the ratio between each array, we round it to int for good measure just in case the sizes are not perfectly divisible
+        float sizeRatio = (float)originalSize / newSize;
+
+        // For all elements in the new array
+        for (int x = 0; x < newSize; x++)
+        {
+            for (int y = 0; y < newSize; y++)
+            {
+                // Calculate the corresponding position in the original array
+                int originalX = (int)(x * sizeRatio);
+                int originalY = (int)(y * sizeRatio);
+
+                // Copy the scaled value
+                scaledArray[Index2Dto1D(x, y, newSize)] = originalArray[Index2Dto1D(originalX, originalY, originalSize)];
+            }
+        }
+
+        return scaledArray;
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+
     void UpdateMesh()
     {
-        debug.Clear();
-
-        // For all vertices
-        for (int x = 0; x < vertices.Count; x++)
-        {
-            //debug.Add(new Vector3(vertices[x].x, Mathf.Sin(x * Time.timeSinceLevelLoad), vertices[x].z));
-
-            //vertices[x] = new Vector3(vertices[x].x, GetNoiseLocal(vertices[x]), vertices[x].z);
-            vertices[x] = new Vector3(vertices[x].x, noiseMemory[Mathf.RoundToInt(Mathf.Clamp(x, 0, noiseMemory.Length) / 4.0f)], vertices[x].z);
-        }
-        
-        Debug.Log(vertices.Count);
-        Debug.Log(noiseMemory.Length);
-        /*
         int vIndex = 0;
 
         for (int x = 0; x < chunkSize; x++)
         {
             for (int y = 0; y < chunkSize; y++)
             {
-                // Ok so noise memory is 4 times smaller than verice count because quads, to resolve this we scale the index down by 4 times then round it to the nearest integer to pick one of these values
+                // Ok so a little complex, we are making every vertex share noise values by making each face 'tile' by 1 instead of two, we can plus one the noiseMemory since it has that + 1 to it's size from spawning
+                // These constant numbers in Index2Dto1D represent the position of each vertex, by adding on a axis positions of 1 we cam make the vertex jump to the next block if you know what I mean
+                // Look at the wireframe at try visualising how this works to wrap your head around it
+                vertices[vIndex + 0] = new Vector3(vertices[vIndex + 0].x, noiseMemory[Index2Dto1D(0 + x, 0 + y, chunkSize + 1)], vertices[vIndex + 0].z);
+                vertices[vIndex + 1] = new Vector3(vertices[vIndex + 1].x, noiseMemory[Index2Dto1D(1 + x, 0 + y, chunkSize + 1)], vertices[vIndex + 1].z);
+                vertices[vIndex + 2] = new Vector3(vertices[vIndex + 2].x, noiseMemory[Index2Dto1D(0 + x, 1 + y, chunkSize + 1)], vertices[vIndex + 2].z);
+                vertices[vIndex + 3] = new Vector3(vertices[vIndex + 3].x, noiseMemory[Index2Dto1D(1 + x, 1 + y, chunkSize + 1)], vertices[vIndex + 3].z);
 
-                Vector3 startPosition1 = new Vector3(x, noiseMemory[Mathf.RoundToInt(vIndex + 0 / 4.0f)], y);
-                Vector3 startPosition2 = new Vector3(x, noiseMemory[Mathf.RoundToInt(vIndex + 1 / 4.0f)], y);
-                Vector3 startPosition3 = new Vector3(x, noiseMemory[Mathf.RoundToInt(vIndex / 4.0f)], y);
-                Vector3 startPosition4 = new Vector3(x, noiseMemory[Mathf.RoundToInt(vIndex / 4.0f)], y);
-                
-                vertices[vIndex + 0] = (startPosition1 + Top.vertex1) * chunkUnitSize;
-                vertices[vIndex + 1] = (startPosition2 + Top.vertex2) * chunkUnitSize;
-                vertices[vIndex + 2] = (startPosition3 + Top.vertex3) * chunkUnitSize;
-                vertices[vIndex + 3] = (startPosition4 + Top.vertex4) * chunkUnitSize;
-                
-                //vertices[vIndex + 0] = new Vector3(x - 0.5f, noiseMemory[(chunkSize * y) + x], y + 0.5f) * chunkUnitSize; // Upper left
-                //vertices[vIndex + 1] = new Vector3(x + 0.5f, noiseMemory[(chunkSize * y) + x], y + 0.5f) * chunkUnitSize; // Upper right
-                //vertices[vIndex + 2] = new Vector3(x - 0.5f, noiseMemory[(chunkSize * y) + x], y - 0.5f) * chunkUnitSize; // Lower left
-                //vertices[vIndex + 3] = new Vector3(x + 0.5f, noiseMemory[(chunkSize * y) + x], y - 0.5f) * chunkUnitSize; // Lower right
-               
                 //colours[vIndex + 0] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
                 //colours[vIndex + 1] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
                 //colours[vIndex + 2] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
                 //colours[vIndex + 3] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
-                
+
                 vIndex += 4;
             }
         }
-        */
+        
+        // !!! Test if that artifact is still there using sine
+        
+        // For all vertices
+        for (int x = 0; x < vertices.Count; x++)
+        {
+            vertices[x] = new Vector3(vertices[x].x, Mathf.Sin(vertices[x].x + vertices[x].z + Time.timeSinceLevelLoad), vertices[x].z);
+        }
+        
+
         mesh.SetVertices(vertices);
-        mesh.SetColors(colours);
+        //mesh.SetColors(colours);
 
         mesh.RecalculateNormals();
         mesh.RecalculateTangents();
 
         meshFilter.mesh = mesh;
-        meshFilter.mesh.MarkDynamic();
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -178,7 +195,7 @@ public class Chunk : MonoBehaviour
     {
         // Nullify chunk stretching effects, then round to int
         Vector2Int roundPosition = Vector2Int.RoundToInt(position / chunkUnitSize);
-        return noiseMemory[Index2Dto1D(roundPosition.x, roundPosition.y)];
+        return noiseMemory[Index2Dto1D(roundPosition.x, roundPosition.y, chunkSize)];
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -285,28 +302,28 @@ public class Chunk : MonoBehaviour
 
     /// <summary> Takes in a 3D index and flattens them into the index for a 1D array </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public int Index3Dto1D(int x, int y, int z)
+    public int Index3Dto1D(int x, int y, int z, int array1DSize)
     {
-        return (z * chunkSize * chunkSize) + (y * chunkSize) + x;
+        return (z * array1DSize * array1DSize) + (y * array1DSize) + x;
     }
 
     // -----------------------------------------------------------------------------------------------------
 
     /// <summary> Takes in a 2D index and flattens them into the index for a 1D array </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public int Index2Dto1D(int x, int y)
+    public int Index2Dto1D(int x, int y, int array1DSize)
     {
-        return (y * chunkSize) + x;
+        return (y * array1DSize) + x;
     }
 
     // -----------------------------------------------------------------------------------------------------
 
     /// <summary> Take in a 1D index for a flattened 1D array and expands them into a 2D index </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector2Int Index1Dto2D(int index)
+    public Vector2Int Index1Dto2D(int index, int array1DSize)
     {
-        int y = index / chunkSize;
-        int x = index % chunkSize;
+        int y = index / array1DSize;
+        int x = index % array1DSize;
 
         return new Vector2Int(x, y);
     }
@@ -315,12 +332,12 @@ public class Chunk : MonoBehaviour
 
     /// <summary> Take in a 1D index for a flattened 1D array and expands them into a 3D index  </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector3Int Index1Dto3D(int index)
+    public Vector3Int Index1Dto3D(int index, int array1DSize)
     {
-        int z = index / (chunkSize * chunkSize);
-        index -= z * chunkSize * chunkSize;
-        int y = index / chunkSize;
-        int x = index % chunkSize;
+        int z = index / (array1DSize * array1DSize);
+        index -= z * array1DSize * array1DSize;
+        int y = index / array1DSize;
+        int x = index % array1DSize;
 
         return new Vector3Int(x, y, z);
     }

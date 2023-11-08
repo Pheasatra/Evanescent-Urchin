@@ -631,7 +631,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.3
-  far clip plane: 100000
+  far clip plane: 1000000
   field of view: 60
   orthographic: 0
   orthographic size: 5
@@ -2048,10 +2048,10 @@ MonoBehaviour:
   ySeed: 0
   zSeed: 0
   octaves: 4
-  scale: 20
+  scale: 1
   amplitude: 2
   frequency: 0.1
-  waveSpeed: 1
+  waveSpeed: 0.5
   subScale: 1
   persistance: 0.5
   lacunarity: 2

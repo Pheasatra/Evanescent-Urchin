@@ -171,7 +171,6 @@ public class TerrainManager : MonoBehaviour
                 }
 
                 // Combine our camera chunk position with the chunk position
-                chunkKey = cameraChunkIndex + rawChunkKey;
                 chunkKey = new Vector3Int(cameraChunkIndex.x, 0, cameraChunkIndex.z) + rawChunkKey;
 
                 chunk = GetChunk(chunkKey);
@@ -194,12 +193,14 @@ public class TerrainManager : MonoBehaviour
         for (int x = 0; x < keys.Count; x++)
         {
             // Get the distance between the camera position
-            distance = Vector3.Distance(cameraChunkIndex, keys[x]);
+            distance = Vector3.Distance(new Vector3Int(cameraChunkIndex.x, 0, cameraChunkIndex.z), keys[x]);
 
             switch (distance < currentRenderDistance)
             {
                 // If distance is smaller than currentRenderDistance
                 case true:
+                    chunk = GetChunk(keys[x]);
+                    chunk.lodDistance = Mathf.RoundToInt(distance / 2.0f);
                     continue;
             }
 
@@ -290,7 +291,8 @@ public class TerrainManager : MonoBehaviour
         chunk.chunkSize = chunkSize;
         chunk.chunkUnitSize = chunkUnitSize;
 
-        chunk.noiseMemory = new float[chunkSize * chunkSize];
+        // Set the noise memory size to be (chunk size + 1)^2 to account for the vertices on the very edges
+        chunk.noiseMemory = new float[(chunkSize + 1) * (chunkSize + 1)];
 
         chunks.Add(chunkKey, chunk);
 
