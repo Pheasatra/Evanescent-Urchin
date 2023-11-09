@@ -1,8 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Runtime.CompilerServices;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -13,6 +15,8 @@ public class TerrainManager : MonoBehaviour
     [Header("References")]
     public GameObject chunkPrefab;
     public SimplexNoise simplexNoise = new SimplexNoise();
+    public FastNoiseLite fastNoiseLite = new FastNoiseLite();
+    public FastNoise fastNoise2;
 
     // Where all our inactive chunks are stored
     public ChunkPool chunkPool;
@@ -36,6 +40,7 @@ public class TerrainManager : MonoBehaviour
     [Header("Noise")]
     [Tooltip("How many layers of noise do you want to ovelap?")]
     public int octaves;
+    public int noiseUpdatesPerSecond = 165;
 
     [Space(10)]
 
@@ -46,7 +51,7 @@ public class TerrainManager : MonoBehaviour
 
     [Space(10)]
 
-    public float subScale = 1.0f;
+    // Our octaves sub waves, we don't do subscale as this offsets everything
     public float persistance = 1.0f;
     public float lacunarity = 1.0f;
     public float waveScale = 1.0f;
@@ -88,6 +93,12 @@ public class TerrainManager : MonoBehaviour
     void Start()
     {
         simplexNoise.Setup();
+        fastNoiseLite.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
+
+        fastNoise2 = new FastNoise("FractalFBm");
+        fastNoise2.Set("Source", new FastNoise("Simplex"));
+        fastNoise2.Set("Gain", 0.3f);
+        fastNoise2.Set("Lacunarity", 0.6f);
 
         octaveOffsets = new Vector3[octaves];
 
@@ -210,14 +221,48 @@ public class TerrainManager : MonoBehaviour
     }
 
     // -----------------------------------------------------------------------------------------------------
+    
+    /// <summary> Generates Simplex noise in octaves </summary>
+    public float OctaveSimplex2D(float x, float y)
+    {
+        float output = 0;
+
+        float currentAmplitude = amplitude;
+        float currentFrequency = frequency;
+        float currentWaveSpeed = waveSpeed;
+
+        //Loop through all octaves.
+        for (int i = 0; i < octaves; i++)
+        {
+            float waveOffset = Time.timeSinceLevelLoad * currentWaveSpeed;
+            //float frequencyScale = scale * currentFrequency;
+
+            // !!!! OPTIMISE removes repeated calculations
+            float xCoord = (x + xSeed) / scale * currentFrequency + octaveOffsets[i].x + waveOffset;
+            float yCoord = (y + ySeed) / scale * currentFrequency + octaveOffsets[i].y + waveOffset;
+
+            // !!! Fix the tiling issue
+
+            output += OpenSimplex2.Noise2_UnskewedBase(worldSeed, xCoord, yCoord) / scale * currentFrequency * currentAmplitude;  // FASTEST NON-SIMD
+            //output += fastNoiseLite.GetNoise(xCoord, yCoord) / scale * currentFrequency * currentAmplitude;
+            //output += terrainManager.fastNoise2.GenSingle2D(xCoord, yCoord, worldSeed) / scale * currentFrequency * currentAmplitude;
+            //output += SimplexNoiseAll.Noise.Generate(xCoord, yCoord) / scale * currentFrequency * currentAmplitude;
+
+            currentAmplitude *= persistance;
+            currentFrequency *= lacunarity;
+            currentWaveSpeed /= waveScale;
+        }
+
+        return output;
+    }
+
+    // -----------------------------------------------------------------------------------------------------
 
     /// <summary> Generates Simplex noise in octaves </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public float OctaveSimplex3D(float x, float y, float z)
     {
         float output = 0;
 
-        float currentScale = scale;
         float currentAmplitude = amplitude;
         float currentFrequency = frequency;
         float currentWaveSpeed = waveSpeed;
@@ -228,13 +273,16 @@ public class TerrainManager : MonoBehaviour
             float waveOffset = Time.timeSinceLevelLoad * currentWaveSpeed;
 
             // !!!! OPTIMISE removes repeated calculations
-            float xCoord = (x + xSeed) / currentScale * currentFrequency + octaveOffsets[i].x + waveOffset;
-            float yCoord = (y + ySeed) / currentScale * currentFrequency + octaveOffsets[i].y + waveOffset;
-            float zCoord = (z + zSeed) / currentScale * currentFrequency + octaveOffsets[i].z + waveOffset;
+            float xCoord = (x + xSeed) / scale * currentFrequency + octaveOffsets[i].x + waveOffset;
+            float yCoord = (y + ySeed) / scale * currentFrequency + octaveOffsets[i].y + waveOffset;
+            float zCoord = (z + zSeed) / scale * currentFrequency + octaveOffsets[i].z + waveOffset;
 
-            output += simplexNoise.SimplexNoise3D(xCoord, yCoord, zCoord) * currentAmplitude;
+            //output += simplexNoise.SimplexNoise3D(xCoord, yCoord, zCoord) / scale * currentFrequency * currentAmplitude;
+            //output += OpenSimplex2.Noise3_ImproveXZ(worldSeed, xCoord, yCoord, zCoord) / scale * currentFrequency * currentAmplitude;
+            //output += fastNoiseLite.GetNoise(xCoord, yCoord, zCoord) / scale * currentFrequency * currentAmplitude;
+            output += fastNoise2.GenSingle3D(xCoord, yCoord, zCoord, worldSeed) / scale * currentFrequency * currentAmplitude;
+            //output += SimplexNoiseAll.Noise.Generate(xCoord, yCoord, zCoord) / scale * currentFrequency * currentAmplitude;
 
-            currentScale *= subScale;
             currentAmplitude *= persistance;
             currentFrequency *= lacunarity;
             currentWaveSpeed /= waveScale;
@@ -289,14 +337,15 @@ public class TerrainManager : MonoBehaviour
         chunk.yChunk = chunkKey.y;
 
         chunk.chunkSize = chunkSize;
-        chunk.chunkUnitSize = chunkUnitSize;
+        chunk.noiseSize = chunkSize + 1;
+        chunk.chunkUnitSize = unitSize;
 
         // Set the noise memory size to be (chunk size + 1)^2 to account for the vertices on the very edges
         chunk.noiseMemory = new float[(chunkSize + 1) * (chunkSize + 1)];
 
         chunks.Add(chunkKey, chunk);
 
-        chunk.DelayedReload(1);
+        chunk.Reload();
     }
 
     // -----------------------------------------------------------------------------------------------------

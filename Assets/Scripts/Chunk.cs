@@ -34,6 +34,8 @@ public class Chunk : MonoBehaviour
     public int chunkSize = 0;
     public float chunkUnitSize = 0;
 
+    public int noiseSize = 0;
+
     public int lodDistance = 0;
 
     public float[] noiseMemory; 
@@ -63,8 +65,16 @@ public class Chunk : MonoBehaviour
         meshFilter = GetComponent<MeshFilter>();
         meshFilter.mesh = mesh;
 
-        GenerateMesh();
+        RegenerateMesh();
+        //InvokeRepeating(nameof(NoiseUpdate), 0.0f, 1.0f / terrainManager.noiseUpdatesPerSecond);
     }
+
+    // -----------------------------------------------------------------------------------------------------
+    /*
+    public void NoiseUpdate()
+    {
+        GenerateMemory();
+    }*/
 
     // -----------------------------------------------------------------------------------------------------
 
@@ -77,42 +87,34 @@ public class Chunk : MonoBehaviour
 
     // -----------------------------------------------------------------------------------------------------
 
-    // Can be upgrade to wait for frames instead of time
-    public void DelayedReload(int framesToWait)
+    // For refreshing things that change between chunks
+    public void Reload()
     {
-        float frameTime = 1.0f / Application.targetFrameRate;
-        Invoke(nameof(Reload), frameTime * framesToWait);
+        //RegenerateMesh();
     }
 
     // -----------------------------------------------------------------------------------------------------
 
-    // For refreshing things that change between chunks
-    public void Reload()
-    {
-        //GenerateMesh();
-    }    
-    
-    // -----------------------------------------------------------------------------------------------------
-    
     // Generate the noise used to contruct the mesh
-    void GenerateMemory()
+    public void GenerateMemory()
     {
-        Vector2Int index2D;
+        int xIndex;
+        int yIndex;
+
+        //Vector3 positionOffset = new Vector3(transform.position.x * chunkUnitSize, 0.0f, transform.position.z * chunkUnitSize);
+        Vector3 positionOffset = new Vector3(xChunk * chunkSize * chunkUnitSize, 0.0f, yChunk * chunkSize * chunkUnitSize);
 
         // For the length of simplex noise
-        for (int x = 0; x < noiseMemory.Length; x++)
+        for (int i = 0; i < noiseMemory.Length; i++)
         {
-            // Use the 2d version, its far faster
-            // !!!! https://github.com/WardBenjamin/SimplexNoise/blob/master/SimplexNoise/Noise.cs
+            // 1D to 2D index conversion
+            xIndex = i / noiseSize;
+            yIndex = i % noiseSize;
 
-            index2D = Index1Dto2D(x, chunkSize);
-            noiseMemory[x] = terrainManager.OctaveSimplex3D(index2D.x + transform.position.x * chunkUnitSize, index2D.y + transform.position.y * chunkUnitSize, 0);
-            /*
-            switch (noise > terrainManager.visiblityLimit)
-            {
-                case false:
-                    continue;
-            }*/
+            noiseMemory[i] = terrainManager.OctaveSimplex3D(xIndex + positionOffset.x, yIndex + positionOffset.z, 0);
+            //noiseMemory[i] = terrainManager.OctaveSimplex2D(xIndex + positionOffset.x, yIndex + positionOffset.z);
+
+            //noiseMemory[i] = Mathf.Sin(xIndex + positionOffset.x + Time.timeSinceLevelLoad * 2);
         }
     }
 
@@ -145,10 +147,16 @@ public class Chunk : MonoBehaviour
 
     // -----------------------------------------------------------------------------------------------------
 
-    void UpdateMesh()
+    public void UpdateMesh()
     {
         int vIndex = 0;
 
+        Vector3 bottomLeft;
+        Vector3 bottomRight;
+        Vector3 TopLeft;
+        Vector3 TopRight;
+
+        // For all tiles
         for (int x = 0; x < chunkSize; x++)
         {
             for (int y = 0; y < chunkSize; y++)
@@ -156,10 +164,30 @@ public class Chunk : MonoBehaviour
                 // Ok so a little complex, we are making every vertex share noise values by making each face 'tile' by 1 instead of two, we can plus one the noiseMemory since it has that + 1 to it's size from spawning
                 // These constant numbers in Index2Dto1D represent the position of each vertex, by adding on a axis positions of 1 we cam make the vertex jump to the next block if you know what I mean
                 // Look at the wireframe at try visualising how this works to wrap your head around it
-                vertices[vIndex + 0] = new Vector3(vertices[vIndex + 0].x, noiseMemory[Index2Dto1D(0 + x, 0 + y, chunkSize + 1)], vertices[vIndex + 0].z);
-                vertices[vIndex + 1] = new Vector3(vertices[vIndex + 1].x, noiseMemory[Index2Dto1D(1 + x, 0 + y, chunkSize + 1)], vertices[vIndex + 1].z);
-                vertices[vIndex + 2] = new Vector3(vertices[vIndex + 2].x, noiseMemory[Index2Dto1D(0 + x, 1 + y, chunkSize + 1)], vertices[vIndex + 2].z);
-                vertices[vIndex + 3] = new Vector3(vertices[vIndex + 3].x, noiseMemory[Index2Dto1D(1 + x, 1 + y, chunkSize + 1)], vertices[vIndex + 3].z);
+
+                // First assign our previous positions to these variables
+                bottomLeft  = vertices[vIndex + 0];
+                bottomRight = vertices[vIndex + 1];
+                TopLeft     = vertices[vIndex + 2];
+                TopRight    = vertices[vIndex + 3];
+
+                // Then we simply change the y position to our noise value
+                // Note: this version unpackeds Index2Dto1D as it is far more performant
+                bottomLeft.y  = noiseMemory[((0 + y) * noiseSize) + 0 + x];
+                bottomRight.y = noiseMemory[((0 + y) * noiseSize) + 1 + x];
+                TopLeft.y     = noiseMemory[((1 + y) * noiseSize) + 0 + x];
+                TopRight.y    = noiseMemory[((1 + y) * noiseSize) + 1 + x];
+                
+                // Less optimal but more sensical code than above
+                //bottomLeft.y  = noiseMemory[Index2Dto1D(0 + x, 0 + y, noiseSize)];
+                //bottomRight.y = noiseMemory[Index2Dto1D(1 + x, 0 + y, noiseSize)];
+                //TopLeft.y     = noiseMemory[Index2Dto1D(0 + x, 1 + y, noiseSize)];
+                //TopRight.y    = noiseMemory[Index2Dto1D(1 + x, 1 + y, noiseSize)];
+                
+                vertices[vIndex + 0] = bottomLeft;
+                vertices[vIndex + 1] = bottomRight;
+                vertices[vIndex + 2] = TopLeft;
+                vertices[vIndex + 3] = TopRight;
 
                 //colours[vIndex + 0] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
                 //colours[vIndex + 1] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
@@ -169,39 +197,18 @@ public class Chunk : MonoBehaviour
                 vIndex += 4;
             }
         }
-        
-        // !!! Test if that artifact is still there using sine
-        
-        // For all vertices
-        for (int x = 0; x < vertices.Count; x++)
-        {
-            vertices[x] = new Vector3(vertices[x].x, Mathf.Sin(vertices[x].x + vertices[x].z + Time.timeSinceLevelLoad), vertices[x].z);
-        }
-        
 
         mesh.SetVertices(vertices);
         //mesh.SetColors(colours);
 
         mesh.RecalculateNormals();
-        mesh.RecalculateTangents();
-
-        meshFilter.mesh = mesh;
-    }
-
-    // -----------------------------------------------------------------------------------------------------
-
-    /// <summary> Takes in a world position and rounds it into chunk space, then it finds the closest noise point and returns it </summary>
-    public float GetNoiseLocal(Vector2 position)
-    {
-        // Nullify chunk stretching effects, then round to int
-        Vector2Int roundPosition = Vector2Int.RoundToInt(position / chunkUnitSize);
-        return noiseMemory[Index2Dto1D(roundPosition.x, roundPosition.y, chunkSize)];
+        //mesh.RecalculateTangents(); // Relates to normals maps, we can get away with not using it here even though we do use them
     }
 
     // -----------------------------------------------------------------------------------------------------
 
     // Generates the chunk mesh
-    void GenerateMesh()
+    public void RegenerateMesh()
     {
         mesh.Clear();
 
@@ -231,9 +238,6 @@ public class Chunk : MonoBehaviour
 
         mesh.RecalculateNormals();
         mesh.RecalculateTangents();
-
-        meshFilter.mesh = mesh;
-        meshFilter.mesh.MarkDynamic();
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -274,6 +278,7 @@ public class Chunk : MonoBehaviour
 
         int vertexCount = vertices.Count;
 
+        // Triangle 1 and 2 for this quad
         triangles.Add(1 + vertexCount - 4);
         triangles.Add(2 + vertexCount - 4);
         triangles.Add(3 + vertexCount - 4);
@@ -289,9 +294,6 @@ public class Chunk : MonoBehaviour
 
     public void SaveAndClearChunk()
     {
-        totalFaces = 0;
-        totalTriangles = 0;
-
         xChunk = 0;
         yChunk = 0;
 
@@ -352,7 +354,7 @@ public class Chunk : MonoBehaviour
     }
 
     // -----------------------------------------------------------------------------------------------------
-
+    /*
     // Debug assistance
     void OnDrawGizmos()
     {
@@ -362,7 +364,7 @@ public class Chunk : MonoBehaviour
             Handles.color = Color.green;
             Handles.DrawWireCube(debug[x] + transform.position, new Vector3(chunkUnitSize, chunkUnitSize, chunkUnitSize) / 4);
         }
-    }
+    }*/
 }
 
 // -----------------------------------------------------------------------------------------------------

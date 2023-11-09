@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Unity.Mathematics;
 using UnityEngine;
 
 //-----------------------------------------------------------------------
@@ -217,8 +218,8 @@ public class SimplexNoise
 
     //-----------------------------------------------------------------------
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     // This method is a *lot* faster than using (int)Math.floor(x)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int FastFloor(float x)
     {
         int xi = (int)x;
@@ -231,6 +232,14 @@ public class SimplexNoise
     public static float Dot(Grad grad, float x, float y, float z)
     {
         return grad.x * x + grad.y * y + grad.z * z;
+    }
+
+    //-----------------------------------------------------------------------
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float Dot(Grad grad, float x, float y)
+    {
+        return grad.x * x + grad.y * y;
     }
 
     //-----------------------------------------------------------------------

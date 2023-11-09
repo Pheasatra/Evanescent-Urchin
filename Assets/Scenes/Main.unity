@@ -2047,12 +2047,12 @@ MonoBehaviour:
   xSeed: 0
   ySeed: 0
   zSeed: 0
-  octaves: 4
-  scale: 1
-  amplitude: 2
+  octaves: 3
+  noiseUpdatesPerSecond: 30
+  scale: 2
+  amplitude: 6
   frequency: 0.1
   waveSpeed: 0.5
-  subScale: 1
   persistance: 0.5
   lacunarity: 2
   waveScale: 1
@@ -2797,7 +2797,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1811059705
 Transform:
   m_ObjectHideFlags: 0
