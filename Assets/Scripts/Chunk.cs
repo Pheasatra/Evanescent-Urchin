@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEditor;
 using UnityEngine;
+using static UnityEditor.Searcher.SearcherWindow.Alignment;
 
 [RequireComponent(typeof(MeshFilter))]
 [RequireComponent(typeof(MeshRenderer))]
@@ -26,11 +27,6 @@ public class Chunk : MonoBehaviour
 
     [Space(10)]
 
-    public int totalFaces;
-    public int totalTriangles;
-
-    [Space(10)]
-
     public int chunkSize = 0;
     public float chunkUnitSize = 0;
 
@@ -40,10 +36,10 @@ public class Chunk : MonoBehaviour
 
     public float[] noiseMemory; 
 
-    [HideInInspector] public List<Vector3> vertices;
-    [HideInInspector] public List<Vector2> uvs;
-    [HideInInspector] public List<Color> colours;
-    [HideInInspector] public List<int> triangles;
+    [HideInInspector] public Vector3[] vertices;
+    [HideInInspector] public Vector2[] uvs;
+    [HideInInspector] public Color[] colours;
+    [HideInInspector] public int[] triangles;
 
     // !!! Map each vector3 to a vertex on a cube, so for example top left, bottom forward, this lets use reuse some of these and also allows us to better understand this code
     public static VertexOffsets Top = new VertexOffsets(new Vector3(-0.5f, 0.0f, -0.5f), new Vector3(0.5f, 0.0f, -0.5f), new Vector3(-0.5f, 0.0f, 0.5f), new Vector3(0.5f, 0.0f, 0.5f));
@@ -51,6 +47,9 @@ public class Chunk : MonoBehaviour
 
     [HideInInspector] public List<Vector3> debug;
     [HideInInspector] public List<Vector3> debug2;
+
+    public int verticeIndex = 0;
+    public int triangleIndex = 0;   // Note that each 'triangle' is actually a winding value, meaning triangle count / 3 = true triangle count
 
     // Start is called before the first frame update
     void Start()
@@ -64,6 +63,11 @@ public class Chunk : MonoBehaviour
 
         meshFilter = GetComponent<MeshFilter>();
         meshFilter.mesh = mesh;
+
+        vertices = new Vector3[chunkSize * chunkSize * 4];  // 4 vertices per face
+        uvs = new Vector2[vertices.Length];                 
+        colours = new Color[vertices.Length];
+        triangles = new int[chunkSize * chunkSize * 6];     // 6 triangle corners per face (for winding)
 
         RegenerateMesh();
         //InvokeRepeating(nameof(NoiseUpdate), 0.0f, 1.0f / terrainManager.noiseUpdatesPerSecond);
@@ -108,13 +112,14 @@ public class Chunk : MonoBehaviour
         for (int i = 0; i < noiseMemory.Length; i++)
         {
             // 1D to 2D index conversion
-            xIndex = i / noiseSize;
-            yIndex = i % noiseSize;
+            yIndex = i / noiseSize;
+            xIndex = i % noiseSize;
 
-            noiseMemory[i] = terrainManager.OctaveSimplex3D(xIndex + positionOffset.x, yIndex + positionOffset.z, 0);
+            //noiseMemory[i] = terrainManager.OctaveSimplex3D(xIndex + positionOffset.x, yIndex + positionOffset.z, 0);
             //noiseMemory[i] = terrainManager.OctaveSimplex2D(xIndex + positionOffset.x, yIndex + positionOffset.z);
 
-            //noiseMemory[i] = Mathf.Sin(xIndex + positionOffset.x + Time.timeSinceLevelLoad * 2);
+            //noiseMemory[i] = Mathf.Sin(xIndex + transform.position.x + Time.timeSinceLevelLoad * 2);
+            noiseMemory[i] = (xIndex + positionOffset.x + yIndex + positionOffset.z) / 4;
         }
     }
 
@@ -149,12 +154,12 @@ public class Chunk : MonoBehaviour
 
     public void UpdateMesh()
     {
-        int vIndex = 0;
+        verticeIndex = 0;
 
-        Vector3 bottomLeft;
-        Vector3 bottomRight;
-        Vector3 TopLeft;
-        Vector3 TopRight;
+        int verticesPlus0;
+        int verticesPlus1;
+        int verticesPlus2;  
+        int verticesPlus3;
 
         // For all tiles
         for (int x = 0; x < chunkSize; x++)
@@ -165,43 +170,32 @@ public class Chunk : MonoBehaviour
                 // These constant numbers in Index2Dto1D represent the position of each vertex, by adding on a axis positions of 1 we cam make the vertex jump to the next block if you know what I mean
                 // Look at the wireframe at try visualising how this works to wrap your head around it
 
-                // First assign our previous positions to these variables
-                bottomLeft  = vertices[vIndex + 0];
-                bottomRight = vertices[vIndex + 1];
-                TopLeft     = vertices[vIndex + 2];
-                TopRight    = vertices[vIndex + 3];
+                // Precompute vertices, in case we use it twice
+                verticesPlus0 = verticeIndex + 0;
+                verticesPlus1 = verticeIndex + 1;
+                verticesPlus2 = verticeIndex + 2;
+                verticesPlus3 = verticeIndex + 3;
 
-                // Then we simply change the y position to our noise value
+                // We simply change the y position to our noise value
                 // Note: this version unpackeds Index2Dto1D as it is far more performant
-                bottomLeft.y  = noiseMemory[((0 + y) * noiseSize) + 0 + x];
-                bottomRight.y = noiseMemory[((0 + y) * noiseSize) + 1 + x];
-                TopLeft.y     = noiseMemory[((1 + y) * noiseSize) + 0 + x];
-                TopRight.y    = noiseMemory[((1 + y) * noiseSize) + 1 + x];
-                
-                // Less optimal but more sensical code than above
-                //bottomLeft.y  = noiseMemory[Index2Dto1D(0 + x, 0 + y, noiseSize)];
-                //bottomRight.y = noiseMemory[Index2Dto1D(1 + x, 0 + y, noiseSize)];
-                //TopLeft.y     = noiseMemory[Index2Dto1D(0 + x, 1 + y, noiseSize)];
-                //TopRight.y    = noiseMemory[Index2Dto1D(1 + x, 1 + y, noiseSize)];
-                
-                vertices[vIndex + 0] = bottomLeft;
-                vertices[vIndex + 1] = bottomRight;
-                vertices[vIndex + 2] = TopLeft;
-                vertices[vIndex + 3] = TopRight;
+                vertices[verticesPlus0].y = noiseMemory[((0 + y) * noiseSize) + 0 + x];
+                vertices[verticesPlus1].y = noiseMemory[((0 + y) * noiseSize) + 1 + x];
+                vertices[verticesPlus2].y = noiseMemory[((1 + y) * noiseSize) + 0 + x];
+                vertices[verticesPlus3].y = noiseMemory[((1 + y) * noiseSize) + 1 + x];
 
-                //colours[vIndex + 0] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
-                //colours[vIndex + 1] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
-                //colours[vIndex + 2] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
-                //colours[vIndex + 3] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
+                //colours[verticesPlus0] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
+                //colours[verticesPlus1] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
+                //colours[verticesPlus2] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
+                //colours[verticesPlus3] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
 
-                vIndex += 4;
+                verticeIndex += 4;
             }
         }
 
         mesh.SetVertices(vertices);
         //mesh.SetColors(colours);
 
-        mesh.RecalculateNormals();
+        //mesh.RecalculateNormals();
         //mesh.RecalculateTangents(); // Relates to normals maps, we can get away with not using it here even though we do use them
     }
 
@@ -210,12 +204,10 @@ public class Chunk : MonoBehaviour
     // Generates the chunk mesh
     public void RegenerateMesh()
     {
-        mesh.Clear();
+        verticeIndex = 0;
+        triangleIndex = 0;
 
-        // Create lists for all the vertives, uvs and triangles in case they already exist
-        vertices.Clear();
-        uvs.Clear();
-        triangles.Clear();
+        mesh.Clear();
 
         Vector3Int startPosition;
 
@@ -246,16 +238,22 @@ public class Chunk : MonoBehaviour
     /// There are also two optional stretching variables 'faceStretch' which is good for greedy mesh faces, and 'chunkStretch' which stretches everything leading to a larger looking chunk </summary>
     public void BuildFace(VertexOffsets offset, Vector3Int startPosition, float chunkStretch = 1)
     {
-        vertices.Add((startPosition + offset.vertex1) * chunkStretch);
-        vertices.Add((startPosition + offset.vertex2) * chunkStretch);
-        vertices.Add((startPosition + offset.vertex3) * chunkStretch);
-        vertices.Add((startPosition + offset.vertex4) * chunkStretch);
-        /*
-        colours.Add(new Color(startPosition.x, startPosition.y, 0) / chunkSize);
-        colours.Add(new Color(startPosition.x, startPosition.y, 0) / chunkSize);
-        colours.Add(new Color(startPosition.x, startPosition.y, 0) / chunkSize);
-        colours.Add(new Color(startPosition.x, startPosition.y, 0) / chunkSize);
-        */
+        // Precompute vertices 
+        int verticesPlus0 = verticeIndex + 0;
+        int verticesPlus1 = verticeIndex + 1;
+        int verticesPlus2 = verticeIndex + 2;
+        int verticesPlus3 = verticeIndex + 3;
+
+        vertices[verticesPlus0] = (startPosition + offset.vertex1) * chunkStretch;
+        vertices[verticesPlus1] = (startPosition + offset.vertex2) * chunkStretch;
+        vertices[verticesPlus2] = (startPosition + offset.vertex3) * chunkStretch;
+        vertices[verticesPlus3] = (startPosition + offset.vertex4) * chunkStretch;
+
+        colours[verticesPlus0] = new Color(startPosition.x, startPosition.y, startPosition.z) / chunkSize;
+        colours[verticesPlus1] = new Color(startPosition.x, startPosition.y, startPosition.z) / chunkSize;
+        colours[verticesPlus2] = new Color(startPosition.x, startPosition.y, startPosition.z) / chunkSize;
+        colours[verticesPlus3] = new Color(startPosition.x, startPosition.y, startPosition.z) / chunkSize;
+        
         /*
         int index = Index2Dto1D(startPosition.x, startPosition.y);
         
@@ -271,23 +269,23 @@ public class Chunk : MonoBehaviour
         uvs.Add(new Vector2(uvX, uvY));
         */
         // Temporary, maps one texture to each quad
-        uvs.Add(new Vector2(0, 0));
-        uvs.Add(new Vector2(0, 1));
-        uvs.Add(new Vector2(1, 0));
-        uvs.Add(new Vector2(1, 1));
-
-        int vertexCount = vertices.Count;
+        uvs[verticesPlus0] = new Vector2(0, 0);
+        uvs[verticesPlus1] = new Vector2(0, 1);
+        uvs[verticesPlus2] = new Vector2(1, 0);
+        uvs[verticesPlus3] = new Vector2(1, 1);
 
         // Triangle 1 and 2 for this quad
-        triangles.Add(1 + vertexCount - 4);
-        triangles.Add(2 + vertexCount - 4);
-        triangles.Add(3 + vertexCount - 4);
-        triangles.Add(0 + vertexCount - 4);
-        triangles.Add(2 + vertexCount - 4);
-        triangles.Add(1 + vertexCount - 4);
+        // We take the winding value and add the vertices count minus the 4 vertices for each face, the following comments are the winding order
+        triangles[triangleIndex + 0] = verticesPlus1;    // 1
+        triangles[triangleIndex + 1] = verticesPlus2;    // 2
+        triangles[triangleIndex + 2] = verticesPlus3;    // 3
+        triangles[triangleIndex + 3] = verticesPlus0;    // 0
+        triangles[triangleIndex + 4] = verticesPlus2;    // 2
+        triangles[triangleIndex + 5] = verticesPlus1;    // 1
 
-        totalFaces += 1;
-        totalTriangles += 2;
+        // Add our vertice and winding counts for this face
+        verticeIndex += 4;
+        triangleIndex += 6;
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -296,8 +294,6 @@ public class Chunk : MonoBehaviour
     {
         xChunk = 0;
         yChunk = 0;
-
-        //Array.Clear(noiseMemory, 0, noiseMemory.Length);
     }
 
     // -----------------------------------------------------------------------------------------------------
