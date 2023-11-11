@@ -23,7 +23,7 @@ public class Chunk : MonoBehaviour
     [Space(10)]
 
     public int xChunk = 0;
-    public int yChunk = 0;
+    public int zChunk = 0;
 
     [Space(10)]
 
@@ -105,8 +105,7 @@ public class Chunk : MonoBehaviour
         int xIndex;
         int yIndex;
 
-        //Vector3 positionOffset = new Vector3(transform.position.x * chunkUnitSize, 0.0f, transform.position.z * chunkUnitSize);
-        Vector3 positionOffset = new Vector3(xChunk * chunkSize * chunkUnitSize, 0.0f, yChunk * chunkSize * chunkUnitSize);
+        Vector3 positionOffset = new Vector3(xChunk * chunkSize , 0.0f, zChunk * chunkSize );
 
         // For the length of simplex noise
         for (int i = 0; i < noiseMemory.Length; i++)
@@ -119,7 +118,7 @@ public class Chunk : MonoBehaviour
             //noiseMemory[i] = terrainManager.OctaveSimplex2D(xIndex + positionOffset.x, yIndex + positionOffset.z);
 
             //noiseMemory[i] = Mathf.Sin(xIndex + transform.position.x + Time.timeSinceLevelLoad * 2);
-            noiseMemory[i] = (xIndex + positionOffset.x + yIndex + positionOffset.z) / 4;
+            noiseMemory[i] = (xIndex + positionOffset.x + yIndex + positionOffset.z) / 4;   // Tiling Tester
         }
     }
 
@@ -293,7 +292,7 @@ public class Chunk : MonoBehaviour
     public void SaveAndClearChunk()
     {
         xChunk = 0;
-        yChunk = 0;
+        zChunk = 0;
     }
 
     // -----------------------------------------------------------------------------------------------------

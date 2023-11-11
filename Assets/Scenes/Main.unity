@@ -2058,9 +2058,9 @@ MonoBehaviour:
   waveScale: 1
   octaveOffsets: []
   visiblityLimit: 0
-  chunkUnitSize: 1
+  chunkUnitSize: 2
   baseChunkSize: 16
-  renderDistance: 2
+  renderDistance: 4
   cameraChunkIndex: {x: 0, y: 0, z: 0}
   currentRenderDistance: 0
 --- !u!1 &1165111984

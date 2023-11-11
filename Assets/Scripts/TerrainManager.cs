@@ -334,7 +334,7 @@ public class TerrainManager : MonoBehaviour
         chunk.transform.name = "Chunk (" + chunkKey + ")";
 
         chunk.xChunk = chunkKey.x;
-        chunk.yChunk = chunkKey.y;
+        chunk.zChunk = chunkKey.z;
 
         chunk.chunkSize = chunkSize;
         chunk.noiseSize = chunkSize + 1;
