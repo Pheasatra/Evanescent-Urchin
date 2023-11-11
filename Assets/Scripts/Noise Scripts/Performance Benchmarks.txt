@@ -4,7 +4,7 @@ Stress Test w/
 9,216 Vertices
 
 Frame times for reference
-Time per frame = 1 / 165 = 6ms
+Time per frame = 1 / 165 = 6ms    // target
 Time per frame = 1 / 60 = 16ms
 				
 Simplex Calculations per second
@@ -12,7 +12,7 @@ Simplex Calculations per second
 10,404 * 60 = 624,240 * 4 Octaves = 2,496,960
 
 Each Simplex calculation has about 20 expensive functions worth of calculations in them (FastFloor*2, Grad*4, If*5, Add*20, Sub*15, Multi*35) (estimate)
-Probably good to limit this to around 1 million make sure everyone can play it in webGL especially
+Probably good to limit this to around 1 million make sure everyone can play it in webGL especially, could also switch to gerstener waves and bump up the octaves as it is far cheaper (Sine, Pow, Add*3)
 
 3D
 FastNoise2 (SIMD) 	= 2.53ms
@@ -28,6 +28,4 @@ SimplexNoise 		= 7.58ms
 FastNoiseLite 		= 10.83ms
 Simplex (Mine)		= N/A
 
-WebGL does not support Compute shaders, Multithreading(it semi-works), or SIMD. (Normal shaders work though but I need the data CPU side for buoyancy calculations and procedural textures are pain)
-Because of this everything (except possibly audio & physics (the aforementioned semi-works in question)) has to be done on the main thread and any hiccups above 6-16 ms worth of frame time 
-will hang everything.
+WebGL does not support Compute shaders, Multithreading(it semi-works), or SIMD. (Normal shaders work though), so everything runs on the main thread

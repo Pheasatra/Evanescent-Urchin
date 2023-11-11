@@ -115,10 +115,10 @@ public class Chunk : MonoBehaviour
             xIndex = i % noiseSize;
 
             //noiseMemory[i] = terrainManager.OctaveSimplex3D(xIndex + positionOffset.x, yIndex + positionOffset.z, 0);
-            //noiseMemory[i] = terrainManager.OctaveSimplex2D(xIndex + positionOffset.x, yIndex + positionOffset.z);
+            noiseMemory[i] = terrainManager.OctaveSimplex2D(xIndex + positionOffset.x, yIndex + positionOffset.z);
 
             //noiseMemory[i] = Mathf.Sin(xIndex + transform.position.x + Time.timeSinceLevelLoad * 2);
-            noiseMemory[i] = (xIndex + positionOffset.x + yIndex + positionOffset.z) / 4;   // Tiling Tester
+            //noiseMemory[i] = (xIndex + positionOffset.x + yIndex + positionOffset.z) / 4;   // Tiling Tester
         }
     }
 
@@ -194,7 +194,7 @@ public class Chunk : MonoBehaviour
         mesh.SetVertices(vertices);
         //mesh.SetColors(colours);
 
-        //mesh.RecalculateNormals();
+        mesh.RecalculateNormals();
         //mesh.RecalculateTangents(); // Relates to normals maps, we can get away with not using it here even though we do use them
     }
 

@@ -222,7 +222,7 @@ public class TerrainManager : MonoBehaviour
 
     // -----------------------------------------------------------------------------------------------------
     
-    /// <summary> Generates Simplex noise in octaves </summary>
+    /// <summary> Generates 2D Simplex noise in octaves </summary>
     public float OctaveSimplex2D(float x, float y)
     {
         float output = 0;
@@ -231,17 +231,15 @@ public class TerrainManager : MonoBehaviour
         float currentFrequency = frequency;
         float currentWaveSpeed = waveSpeed;
 
-        //Loop through all octaves.
+        // For all octaves.
         for (int i = 0; i < octaves; i++)
         {
             float waveOffset = Time.timeSinceLevelLoad * currentWaveSpeed;
             //float frequencyScale = scale * currentFrequency;
 
-            // !!!! OPTIMISE removes repeated calculations
+            // !!!! OPTIMISE, precalculate repeated operations
             float xCoord = (x + xSeed) / scale * currentFrequency + octaveOffsets[i].x + waveOffset;
             float yCoord = (y + ySeed) / scale * currentFrequency + octaveOffsets[i].y + waveOffset;
-
-            // !!! Fix the tiling issue
 
             output += OpenSimplex2.Noise2_UnskewedBase(worldSeed, xCoord, yCoord) / scale * currentFrequency * currentAmplitude;  // FASTEST NON-SIMD
             //output += fastNoiseLite.GetNoise(xCoord, yCoord) / scale * currentFrequency * currentAmplitude;
@@ -258,7 +256,7 @@ public class TerrainManager : MonoBehaviour
 
     // -----------------------------------------------------------------------------------------------------
 
-    /// <summary> Generates Simplex noise in octaves </summary>
+    /// <summary> Generates 3D Simplex noise in octaves </summary>
     public float OctaveSimplex3D(float x, float y, float z)
     {
         float output = 0;
@@ -267,12 +265,12 @@ public class TerrainManager : MonoBehaviour
         float currentFrequency = frequency;
         float currentWaveSpeed = waveSpeed;
 
-        //Loop through all octaves.
+        // For all octaves.
         for (int i = 0; i < octaves; i++)
         {
             float waveOffset = Time.timeSinceLevelLoad * currentWaveSpeed;
 
-            // !!!! OPTIMISE removes repeated calculations
+            // !!!! OPTIMISE, precalculate repeated operations
             float xCoord = (x + xSeed) / scale * currentFrequency + octaveOffsets[i].x + waveOffset;
             float yCoord = (y + ySeed) / scale * currentFrequency + octaveOffsets[i].y + waveOffset;
             float zCoord = (z + zSeed) / scale * currentFrequency + octaveOffsets[i].z + waveOffset;

@@ -101,11 +101,10 @@ MonoBehaviour:
   meshFilter: {fileID: 2180717618984053722}
   textureRatio: 0.125
   xChunk: 0
-  yChunk: 0
-  totalFaces: 0
-  totalTriangles: 0
+  zChunk: 0
   chunkSize: 0
   chunkUnitSize: 0
+  noiseSize: 0
   lodDistance: 0
   noiseMemory: []
   vertices: []
@@ -114,3 +113,5 @@ MonoBehaviour:
   triangles: 
   debug: []
   debug2: []
+  verticeIndex: 0
+  triangleIndex: 0
