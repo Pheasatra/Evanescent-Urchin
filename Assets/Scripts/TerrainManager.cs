@@ -22,40 +22,18 @@ public class TerrainManager : MonoBehaviour
 
     //public List<Block> blockVariants = new List<Block>();
 
+    public Vector3 windDirection;
+
     [Header("Seeds")]
     public int seedRange = 32767;
 
     [Space(10)]
 
-    public bool manualSeeds = false;
+    public bool manualSeed = false;
     public int worldSeed = 0;
 
-    [Space(10)]
-
-    public int xSeed = 0;
-    public int ySeed = 0;
-    public int zSeed = 0;
-
     [Header("Noise")]
-    [Tooltip("How many layers of noise do you want to ovelap?")]
-    public int octaves;
-    public int noiseUpdatesPerSecond = 165;
-
-    [Space(10)]
-
-    public float scale = 0.075f;
-    public float amplitude = 1.0f;
-    public float frequency = 1.0f;
-    public float waveSpeed = 1.0f;
-
-    [Space(10)]
-
-    // Our octaves sub waves, we don't do subscale as this offsets everything
-    public float persistance = 1.0f;
-    public float lacunarity = 1.0f;
-    public float waveScale = 1.0f;
-
-    public Vector3[] octaveOffsets;
+    public List<NoiseSettings> noiseSettings = new List<NoiseSettings>();
 
     [Space(10)]
 
@@ -99,33 +77,24 @@ public class TerrainManager : MonoBehaviour
         fastNoise2.Set("Gain", 0.3f);
         fastNoise2.Set("Lacunarity", 0.6f);
 
-        octaveOffsets = new Vector3[octaves];
-
-        for (int x = 0; x < octaves; x++)
-        {
-            float offsetX = UnityEngine.Random.Range(-seedRange, seedRange);
-            float offsetY = UnityEngine.Random.Range(-seedRange, seedRange);
-            float offsetZ = UnityEngine.Random.Range(-seedRange, seedRange);
-
-            octaveOffsets[x] = new Vector3(offsetX, offsetY, offsetZ);
-        }
-
-        switch (manualSeeds)
+        switch (manualSeed)
         {
             // Randomly generate seed
             case false:
                 int dateTicks = (int)DateTime.Now.Ticks;
 
                 worldSeed = UnityEngine.Random.Range(-dateTicks, dateTicks);
-
-                xSeed = UnityEngine.Random.Range(-seedRange, seedRange);
-                ySeed = UnityEngine.Random.Range(-seedRange, seedRange);
-                zSeed = UnityEngine.Random.Range(-seedRange, seedRange);
                 break;
         }
 
         // Set the primary world seed that will set the x, y, z seeds
         UnityEngine.Random.InitState(worldSeed);
+
+        // Update all of our settings
+        for (int x = 0; x < noiseSettings.Count; x++)
+        {
+            noiseSettings[x].Setup();
+        }
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -133,8 +102,6 @@ public class TerrainManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        scale = Math.Max(scale, 0.0001f);
-
         oldCameraChunkIndex = cameraChunkIndex;
         cameraChunkIndex = FindChunkIndex(Camera.main.transform.position);
 
@@ -221,35 +188,39 @@ public class TerrainManager : MonoBehaviour
 
     // -----------------------------------------------------------------------------------------------------
     
-    /// <summary> Generates 2D noise in octaves </summary>
-    public float OctaveNoise(float x, float y)
+    /// <summary> Generates 2D noise with octaves </summary>
+    public float OctaveNoise(float x, float y, float time, NoiseSettings noiseSettings)
     {
         float output = 0;
 
-        float currentAmplitude = amplitude * chunkUnitSize;
-        float currentFrequency = frequency;
-        float currentWaveSpeed = waveSpeed;
+        float currentAmplitude = noiseSettings.amplitude * chunkUnitSize;   // Scale with unit size
+        float currentFrequency = noiseSettings.frequency;
+        float currentWaveSpeed = noiseSettings.waveSpeed;
+
+        Vector3 waveDirection;
 
         // For all octaves.
-        for (int i = 0; i < octaves; i++)
+        for (int i = 0; i < noiseSettings.octaves; i++)
         {
-            float waveOffset = Time.timeSinceLevelLoad * currentWaveSpeed;
+            float waveOffset = time * currentWaveSpeed;
+            waveDirection = windDirection * waveOffset;
             //float frequencyScale = scale * currentFrequency;
 
             // !!!! OPTIMISE, precalculate repeated operations
-            float xCoord = (x + xSeed) / scale * currentFrequency + octaveOffsets[i].x + waveOffset;
-            float yCoord = (y + ySeed) / scale * currentFrequency + octaveOffsets[i].y + waveOffset;
+            float xCoord = (x + noiseSettings.xSeed) / noiseSettings.scale * currentFrequency + noiseSettings.octaveOffsets[i].x + waveOffset;
+            float yCoord = (y + noiseSettings.ySeed) / noiseSettings.scale * currentFrequency + noiseSettings.octaveOffsets[i].y + waveOffset;
 
             //output += GerstnerNoise.GerstnerNoise2D(xCoord, yCoord, waveOffset, currentFrequency, currentAmplitude);  // BROKEN, no touchy
 
-            output += OpenSimplex2.Noise2_UnskewedBase(worldSeed, xCoord, yCoord) / scale * currentFrequency * currentAmplitude;  // FASTEST NON-SIMD
+             // We don't need to repeat scale or frequency
+            output += OpenSimplex2.Noise2_UnskewedBase(worldSeed, xCoord, yCoord) / noiseSettings.scale * currentFrequency * currentAmplitude;  // FASTEST NON-SIMD
             //output += fastNoiseLite.GetNoise(xCoord, yCoord) / scale * currentFrequency * currentAmplitude;
             //output += terrainManager.fastNoise2.GenSingle2D(xCoord, yCoord, worldSeed) / scale * currentFrequency * currentAmplitude;
             //output += SimplexNoiseAll.Noise.Generate(xCoord, yCoord) / scale * currentFrequency * currentAmplitude;
 
-            currentAmplitude *= persistance;
-            currentFrequency *= lacunarity;
-            currentWaveSpeed /= waveScale;
+            currentAmplitude *= noiseSettings.persistance;
+            currentFrequency *= noiseSettings.lacunarity;
+            currentWaveSpeed /= noiseSettings.waveSubspeed;
         }
 
         return output;
@@ -257,34 +228,37 @@ public class TerrainManager : MonoBehaviour
 
     // -----------------------------------------------------------------------------------------------------
 
-    /// <summary> Generates 3D noise in octaves </summary>
-    public float OctaveNoise(float x, float y, float z)
+    /// <summary> Generates 3D noise with octaves </summary>
+    public float OctaveNoise(float x, float y, float z, float time, NoiseSettings noiseSettings)
     {
         float output = 0;
 
-        float currentAmplitude = amplitude;
-        float currentFrequency = frequency;
-        float currentWaveSpeed = waveSpeed;
+        float currentAmplitude = noiseSettings.amplitude;
+        float currentFrequency = noiseSettings.frequency;
+        float currentWaveSpeed = noiseSettings.waveSpeed;
+
+        Vector3 waveDirection;
 
         // For all octaves.
-        for (int i = 0; i < octaves; i++)
+        for (int i = 0; i < noiseSettings.octaves; i++)
         {
-            float waveOffset = Time.timeSinceLevelLoad * currentWaveSpeed;
+            float waveOffset = time * currentWaveSpeed;
+            waveDirection = windDirection * waveOffset;
 
             // !!!! OPTIMISE, precalculate repeated operations
-            float xCoord = (x + xSeed) / scale * currentFrequency + octaveOffsets[i].x + waveOffset;
-            float yCoord = (y + ySeed) / scale * currentFrequency + octaveOffsets[i].y + waveOffset;
-            float zCoord = (z + zSeed) / scale * currentFrequency + octaveOffsets[i].z + waveOffset;
+            float xCoord = (x + noiseSettings.xSeed) / noiseSettings.scale * currentFrequency + noiseSettings.octaveOffsets[i].x + waveDirection.x;
+            float yCoord = (y + noiseSettings.ySeed) / noiseSettings.scale * currentFrequency + noiseSettings.octaveOffsets[i].y + waveDirection.y;
+            float zCoord = (z + noiseSettings.zSeed) / noiseSettings.scale * currentFrequency + noiseSettings.octaveOffsets[i].z + waveDirection.z;
 
             //output += simplexNoise.SimplexNoise3D(xCoord, yCoord, zCoord) / scale * currentFrequency * currentAmplitude;
             //output += OpenSimplex2.Noise3_ImproveXZ(worldSeed, xCoord, yCoord, zCoord) / scale * currentFrequency * currentAmplitude;
             //output += fastNoiseLite.GetNoise(xCoord, yCoord, zCoord) / scale * currentFrequency * currentAmplitude;
-            output += fastNoise2.GenSingle3D(xCoord, yCoord, zCoord, worldSeed) / scale * currentFrequency * currentAmplitude;
+            output += fastNoise2.GenSingle3D(xCoord, yCoord, zCoord, worldSeed) / noiseSettings.scale * currentFrequency * currentAmplitude;
             //output += SimplexNoiseAll.Noise.Generate(xCoord, yCoord, zCoord) / scale * currentFrequency * currentAmplitude;
 
-            currentAmplitude *= persistance;
-            currentFrequency *= lacunarity;
-            currentWaveSpeed /= waveScale;
+            currentAmplitude *= noiseSettings.persistance;
+            currentFrequency *= noiseSettings.lacunarity;
+            currentWaveSpeed /= noiseSettings.waveSubspeed;
         }
 
         return output;
@@ -339,8 +313,7 @@ public class TerrainManager : MonoBehaviour
         chunk.noiseSize = chunkSize + 1;
         chunk.chunkUnitSize = unitSize;
 
-        // Set the noise memory size to be (chunk size + 1)^2 to account for the vertices on the very edges
-        chunk.noiseMemory = new float[(chunkSize + 1) * (chunkSize + 1)];
+        chunk. terrainManager = this;
 
         chunks.Add(chunkKey, chunk);
 

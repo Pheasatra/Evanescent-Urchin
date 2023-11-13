@@ -2,9 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using UnityEditor;
 using UnityEngine;
-using static UnityEditor.Searcher.SearcherWindow.Alignment;
 
 [RequireComponent(typeof(MeshFilter))]
 [RequireComponent(typeof(MeshRenderer))]
@@ -34,7 +32,8 @@ public class Chunk : MonoBehaviour
 
     public int lodDistance = 0;
 
-    public float[] noiseMemory; 
+    public float[] fluidNoise; 
+    public float[] solidNoise; 
 
     [HideInInspector] public Vector3[] vertices;
     [HideInInspector] public Vector2[] uvs;
@@ -54,8 +53,6 @@ public class Chunk : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        terrainManager = TerrainManager.terrainManager;        
-        
         // Mesh setup 
         mesh = new Mesh();
         mesh.MarkDynamic();
@@ -69,7 +66,21 @@ public class Chunk : MonoBehaviour
         colours = new Color[vertices.Length];
         triangles = new int[chunkSize * chunkSize * 6 * 2];     // 6 triangle corners per face (for winding), * 2 for both water and terrain
 
+        // Set the noise memory size to be (chunk size + 1)^2 to account for the vertices on the very edges
+        fluidNoise = new float[(chunkSize + 1) * (chunkSize + 1)];
+        solidNoise = new float[(chunkSize + 1) * (chunkSize + 1)];
+
+        // Completly regenerate the mesh on start
         RegenerateMesh();
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+
+    /// <summary> For refreshing things that change between chunks </summary>
+    public void Reload()
+    {
+        // Generate our solid noise once when de-pooling or spawning our chunks
+        GenerateMemory(solidNoise, Time.timeSinceLevelLoad, terrainManager.noiseSettings[1]);
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -77,72 +88,39 @@ public class Chunk : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        GenerateMemory();
+        // There is surely a better way of doing this
+        GenerateMemory(fluidNoise, Time.timeSinceLevelLoad, terrainManager.noiseSettings[0]);
         UpdateMesh();
     }
 
     // -----------------------------------------------------------------------------------------------------
 
-    // For refreshing things that change between chunks
-    public void Reload()
-    {
-        //RegenerateMesh();
-    }
-
-    // -----------------------------------------------------------------------------------------------------
-
-    // Generate the noise used to contruct the mesh
-    public void GenerateMemory()
+    /// <summary> Generate the noise used to contruct the mesh </summary>
+    public void GenerateMemory(float[] output, float time, NoiseSettings noiseSettings)
     {
         int xIndex;
         int yIndex;
 
-        Vector3 positionOffset = new Vector3(xChunk * chunkSize , 0.0f, zChunk * chunkSize );
+        Vector3 positionOffset = new Vector3(xChunk * chunkSize , 0.0f, zChunk * chunkSize);
 
         // For the length of simplex noise
-        for (int i = 0; i < noiseMemory.Length; i++)
+        for (int i = 0; i < output.Length; i++)
         {
             // 1D to 2D index conversion
             yIndex = i / noiseSize;
             xIndex = i % noiseSize;
 
-            //noiseMemory[i] = terrainManager.OctaveSimplex3D(xIndex + positionOffset.x, yIndex + positionOffset.z, 0);
-            noiseMemory[i] = terrainManager.OctavedNoise2D(xIndex + positionOffset.x, yIndex + positionOffset.z);
+            //output[i] = terrainManager.OctaveSimplex(xIndex + positionOffset.x, yIndex + positionOffset.z, 0, time);
+            output[i] = terrainManager.OctaveNoise(xIndex + positionOffset.x, yIndex + positionOffset.z, time, noiseSettings);
 
-            //noiseMemory[i] = Mathf.Sin(xIndex + transform.position.x + Time.timeSinceLevelLoad * 2);
-            //noiseMemory[i] = (xIndex + positionOffset.x + yIndex + positionOffset.z) / 4;   // Tiling Tester
+            //output[i] = Mathf.Sin(xIndex + positionOffset.x + time);                   // Wave Tester
+            //output[i] = (xIndex + positionOffset.x + yIndex + positionOffset.z) / 4;   // Tiling Tester
         }
     }
 
     // -----------------------------------------------------------------------------------------------------
 
-    /// <summary> Takes a flattened 2D array and scales it up or down depending on the new size variables, this duplicates the variables inside too so they fit snug into the new array </summary>
-    public int[] ScaleArray(int[] originalArray, int originalSize, int newSize)
-    {
-        int[] scaledArray = new int[newSize * newSize];
-
-        // Get the ratio between each array, we round it to int for good measure just in case the sizes are not perfectly divisible
-        float sizeRatio = (float)originalSize / newSize;
-
-        // For all elements in the new array
-        for (int x = 0; x < newSize; x++)
-        {
-            for (int y = 0; y < newSize; y++)
-            {
-                // Calculate the corresponding position in the original array
-                int originalX = (int)(x * sizeRatio);
-                int originalY = (int)(y * sizeRatio);
-
-                // Copy the scaled value
-                scaledArray[Index2Dto1D(x, y, newSize)] = originalArray[Index2Dto1D(originalX, originalY, originalSize)];
-            }
-        }
-
-        return scaledArray;
-    }
-
-    // -----------------------------------------------------------------------------------------------------
-
+    /// <summary> Take and existing mesh and updates it's vertices without rebuilding it </summary>
     public void UpdateMesh()
     {
         verticeIndex = 0;
@@ -152,34 +130,57 @@ public class Chunk : MonoBehaviour
         int verticesPlus2;  
         int verticesPlus3;
 
-        //Debug.Log(vertices[0].y);
+        //Debug.Log(fluidNoise[((0 + 0) * noiseSize) + 0 + 0]);
 
         // For all tiles
         for (int x = 0; x < chunkSize; x++)
         {
             for (int y = 0; y < chunkSize; y++)
             {
+                // ----------- Wave Layer -----------
+
                 // Ok so a little complex, we are making every vertex share noise values by making each face 'tile' by 1 instead of two, we can plus one the noiseMemory since it has that + 1 to it's size from spawning
                 // These constant numbers in Index2Dto1D represent the position of each vertex, by adding on a axis positions of 1 we cam make the vertex jump to the next block if you know what I mean
                 // Look at the wireframe at try visualising how this works to wrap your head around it
 
-                // Precompute vertices, in case we use them multiple times
+                // Precompute vertices, in case we use these in multiple places or mesh layers
                 verticesPlus0 = verticeIndex + 0;
                 verticesPlus1 = verticeIndex + 1;
                 verticesPlus2 = verticeIndex + 2;
                 verticesPlus3 = verticeIndex + 3;
 
                 // We simply change the y position to our noise value
-                // Note: this version unpackeds Index2Dto1D as it is far more performant
-                vertices[verticesPlus0].y = noiseMemory[((0 + y) * noiseSize) + 0 + x];
-                vertices[verticesPlus1].y = noiseMemory[((0 + y) * noiseSize) + 1 + x];
-                vertices[verticesPlus2].y = noiseMemory[((1 + y) * noiseSize) + 0 + x];
-                vertices[verticesPlus3].y = noiseMemory[((1 + y) * noiseSize) + 1 + x];
-               
+                // Note: this simply unpacks Index2Dto1D and effectivly inlines it as it is far more performant for realtime updating
+                vertices[verticesPlus0].y = fluidNoise[((0 + y) * noiseSize) + 0 + x];
+                vertices[verticesPlus1].y = fluidNoise[((0 + y) * noiseSize) + 1 + x];
+                vertices[verticesPlus2].y = fluidNoise[((1 + y) * noiseSize) + 0 + x];
+                vertices[verticesPlus3].y = fluidNoise[((1 + y) * noiseSize) + 1 + x];
+
+                // Update our colours so we get dark troughs and vibrant transparent peaks
                 colours[verticesPlus0] = terrainManager.colours[0] * new Color(1, -vertices[verticesPlus0].y, -vertices[verticesPlus0].y) / 2;
                 colours[verticesPlus1] = terrainManager.colours[0] * new Color(1, -vertices[verticesPlus1].y, -vertices[verticesPlus1].y) / 2;
                 colours[verticesPlus2] = terrainManager.colours[0] * new Color(1, -vertices[verticesPlus2].y, -vertices[verticesPlus2].y) / 2;
                 colours[verticesPlus3] = terrainManager.colours[0] * new Color(1, -vertices[verticesPlus3].y, -vertices[verticesPlus3].y) / 2;
+
+                verticeIndex += 4;
+
+                // ----------- Land Layer -----------
+                // We don't want to update this layer much
+
+                verticesPlus0 = verticeIndex + 0;
+                verticesPlus1 = verticeIndex + 1;
+                verticesPlus2 = verticeIndex + 2;
+                verticesPlus3 = verticeIndex + 3;
+
+                vertices[verticesPlus0].y = solidNoise[((0 + y) * noiseSize) + 0 + x];
+                vertices[verticesPlus1].y = solidNoise[((0 + y) * noiseSize) + 1 + x];
+                vertices[verticesPlus2].y = solidNoise[((1 + y) * noiseSize) + 0 + x];
+                vertices[verticesPlus3].y = solidNoise[((1 + y) * noiseSize) + 1 + x];
+
+                colours[verticesPlus0] = terrainManager.colours[1];
+                colours[verticesPlus1] = terrainManager.colours[1];
+                colours[verticesPlus2] = terrainManager.colours[1];
+                colours[verticesPlus3] = terrainManager.colours[1];
 
                 verticeIndex += 4;
             }
@@ -189,12 +190,12 @@ public class Chunk : MonoBehaviour
         mesh.SetColors(colours);
 
         mesh.RecalculateNormals();
-        //mesh.RecalculateTangents(); // Relates to normals maps, we can get away with not using it here even though we do use them
+        mesh.RecalculateTangents(); // Relates to normals maps, we can get away with not using it here even though we do use them
     }
 
     // -----------------------------------------------------------------------------------------------------
 
-    // Generates the chunk mesh
+    /// <summary> Clear and generate the mesh from scratch </summary>
     public void RegenerateMesh()
     {
         verticeIndex = 0;
@@ -211,8 +212,10 @@ public class Chunk : MonoBehaviour
             {
                 startPosition = new Vector3Int(x, 0, y);
 
-                BuildFace(Top, startPosition, chunkUnitSize);
-                //BuildFace(Bottom, startPosition, chunkUnitSize);
+                BuildFace(Top, startPosition, chunkUnitSize); // Water
+                BuildFace(Top, startPosition, chunkUnitSize); // Land
+
+                //BuildFace(Bottom, startPosition, chunkUnitSize); // Cloud
             }
         }
 
@@ -283,6 +286,34 @@ public class Chunk : MonoBehaviour
 
     // -----------------------------------------------------------------------------------------------------
 
+    /// <summary> Takes a flattened 2D array and scales it up or down depending on the new size variables, this duplicates the variables inside too so they fit snug into the new array </summary>
+    public int[] ScaleArray(int[] originalArray, int originalSize, int newSize)
+    {
+        int[] scaledArray = new int[newSize * newSize];
+
+        // Get the ratio between each array, we round it to int for good measure just in case the sizes are not perfectly divisible
+        float sizeRatio = (float)originalSize / newSize;
+
+        // For all elements in the new array
+        for (int x = 0; x < newSize; x++)
+        {
+            for (int y = 0; y < newSize; y++)
+            {
+                // Calculate the corresponding position in the original array
+                int originalX = (int)(x * sizeRatio);
+                int originalY = (int)(y * sizeRatio);
+
+                // Copy the scaled value
+                scaledArray[Index2Dto1D(x, y, newSize)] = originalArray[Index2Dto1D(originalX, originalY, originalSize)];
+            }
+        }
+
+        return scaledArray;
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+
+    /// <summary> Save and clears, ussualy </summary>
     public void SaveAndClearChunk()
     {
         xChunk = 0;

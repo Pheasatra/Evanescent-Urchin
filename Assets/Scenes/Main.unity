@@ -2041,22 +2041,42 @@ MonoBehaviour:
   chunkPrefab: {fileID: 7163117460809693351, guid: a8c1e66d49054bd4185e3c7d72550fcd,
     type: 3}
   chunkPool: {fileID: 845988333}
+  colours:
+  - {r: 0, g: 0.28235295, b: 0.3019608, a: 0.90588236}
+  - {r: 0, g: 0.5943396, b: 0.14655077, a: 1}
+  windDirection: {x: 0, y: 0, z: 0}
   seedRange: 16384
-  manualSeeds: 1
+  manualSeed: 0
   worldSeed: 0
-  xSeed: 0
-  ySeed: 0
-  zSeed: 0
-  octaves: 3
-  noiseUpdatesPerSecond: 30
-  scale: 2
-  amplitude: 6
-  frequency: 0.1
-  waveSpeed: 0.25
-  persistance: 0.5
-  lacunarity: 2
-  waveScale: 1
-  octaveOffsets: []
+  noiseSettings:
+  - name: Fluid
+    scale: 2
+    amplitude: 6
+    frequency: 0.1
+    waveSpeed: 0.25
+    octaves: 3
+    persistance: 0.5
+    lacunarity: 2
+    waveSubspeed: 0.9
+    manualSeeds: 0
+    xSeed: 0
+    ySeed: 0
+    zSeed: 0
+    octaveOffsets: []
+  - name: Land
+    scale: 2
+    amplitude: 20
+    frequency: 0.1
+    waveSpeed: 0.25
+    octaves: 3
+    persistance: 0.5
+    lacunarity: 2
+    waveSubspeed: 0.9
+    manualSeeds: 0
+    xSeed: 0
+    ySeed: 0
+    zSeed: 0
+    octaveOffsets: []
   visiblityLimit: 0
   chunkUnitSize: 4
   baseChunkSize: 16
