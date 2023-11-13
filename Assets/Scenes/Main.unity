@@ -2052,7 +2052,7 @@ MonoBehaviour:
   scale: 2
   amplitude: 6
   frequency: 0.1
-  waveSpeed: 0.5
+  waveSpeed: 0.25
   persistance: 0.5
   lacunarity: 2
   waveScale: 1
@@ -2060,7 +2060,7 @@ MonoBehaviour:
   visiblityLimit: 0
   chunkUnitSize: 4
   baseChunkSize: 16
-  renderDistance: 8
+  renderDistance: 4
   cameraChunkIndex: {x: 0, y: 0, z: 0}
   currentRenderDistance: 0
 --- !u!1 &1165111984

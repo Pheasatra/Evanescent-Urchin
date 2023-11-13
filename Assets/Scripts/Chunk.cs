@@ -64,21 +64,13 @@ public class Chunk : MonoBehaviour
         meshFilter = GetComponent<MeshFilter>();
         meshFilter.mesh = mesh;
 
-        vertices = new Vector3[chunkSize * chunkSize * 4];  // 4 vertices per face
+        vertices = new Vector3[chunkSize * chunkSize * 4 * 2];  // 4 vertices per face, * 2 for both water and terrain
         uvs = new Vector2[vertices.Length];                 
         colours = new Color[vertices.Length];
-        triangles = new int[chunkSize * chunkSize * 6];     // 6 triangle corners per face (for winding)
+        triangles = new int[chunkSize * chunkSize * 6 * 2];     // 6 triangle corners per face (for winding), * 2 for both water and terrain
 
         RegenerateMesh();
-        //InvokeRepeating(nameof(NoiseUpdate), 0.0f, 1.0f / terrainManager.noiseUpdatesPerSecond);
     }
-
-    // -----------------------------------------------------------------------------------------------------
-    /*
-    public void NoiseUpdate()
-    {
-        GenerateMemory();
-    }*/
 
     // -----------------------------------------------------------------------------------------------------
 
@@ -115,7 +107,7 @@ public class Chunk : MonoBehaviour
             xIndex = i % noiseSize;
 
             //noiseMemory[i] = terrainManager.OctaveSimplex3D(xIndex + positionOffset.x, yIndex + positionOffset.z, 0);
-            noiseMemory[i] = terrainManager.OctaveSimplex2D(xIndex + positionOffset.x, yIndex + positionOffset.z);
+            noiseMemory[i] = terrainManager.OctavedNoise2D(xIndex + positionOffset.x, yIndex + positionOffset.z);
 
             //noiseMemory[i] = Mathf.Sin(xIndex + transform.position.x + Time.timeSinceLevelLoad * 2);
             //noiseMemory[i] = (xIndex + positionOffset.x + yIndex + positionOffset.z) / 4;   // Tiling Tester
@@ -160,6 +152,8 @@ public class Chunk : MonoBehaviour
         int verticesPlus2;  
         int verticesPlus3;
 
+        //Debug.Log(vertices[0].y);
+
         // For all tiles
         for (int x = 0; x < chunkSize; x++)
         {
@@ -169,7 +163,7 @@ public class Chunk : MonoBehaviour
                 // These constant numbers in Index2Dto1D represent the position of each vertex, by adding on a axis positions of 1 we cam make the vertex jump to the next block if you know what I mean
                 // Look at the wireframe at try visualising how this works to wrap your head around it
 
-                // Precompute vertices, in case we use it twice
+                // Precompute vertices, in case we use them multiple times
                 verticesPlus0 = verticeIndex + 0;
                 verticesPlus1 = verticeIndex + 1;
                 verticesPlus2 = verticeIndex + 2;
@@ -181,18 +175,18 @@ public class Chunk : MonoBehaviour
                 vertices[verticesPlus1].y = noiseMemory[((0 + y) * noiseSize) + 1 + x];
                 vertices[verticesPlus2].y = noiseMemory[((1 + y) * noiseSize) + 0 + x];
                 vertices[verticesPlus3].y = noiseMemory[((1 + y) * noiseSize) + 1 + x];
-
-                //colours[verticesPlus0] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
-                //colours[verticesPlus1] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
-                //colours[verticesPlus2] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
-                //colours[verticesPlus3] = new Color(UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f), UnityEngine.Random.Range(0.0f, 1.0f));
+               
+                colours[verticesPlus0] = terrainManager.colours[0] * new Color(1, -vertices[verticesPlus0].y, -vertices[verticesPlus0].y) / 2;
+                colours[verticesPlus1] = terrainManager.colours[0] * new Color(1, -vertices[verticesPlus1].y, -vertices[verticesPlus1].y) / 2;
+                colours[verticesPlus2] = terrainManager.colours[0] * new Color(1, -vertices[verticesPlus2].y, -vertices[verticesPlus2].y) / 2;
+                colours[verticesPlus3] = terrainManager.colours[0] * new Color(1, -vertices[verticesPlus3].y, -vertices[verticesPlus3].y) / 2;
 
                 verticeIndex += 4;
             }
         }
 
         mesh.SetVertices(vertices);
-        //mesh.SetColors(colours);
+        mesh.SetColors(colours);
 
         mesh.RecalculateNormals();
         //mesh.RecalculateTangents(); // Relates to normals maps, we can get away with not using it here even though we do use them

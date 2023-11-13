@@ -244,6 +244,7 @@ public class SimplexNoise
 
     //-----------------------------------------------------------------------
 
+    /// <summary> Literally just Vector3 without the vectors </summary>
     public struct Grad
     {
         public float x, y, z;

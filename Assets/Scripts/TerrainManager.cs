@@ -1,10 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Runtime.CompilerServices;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -20,6 +17,8 @@ public class TerrainManager : MonoBehaviour
 
     // Where all our inactive chunks are stored
     public ChunkPool chunkPool;
+
+    public List<Color> colours = new List<Color>();
 
     //public List<Block> blockVariants = new List<Block>();
 
@@ -222,12 +221,12 @@ public class TerrainManager : MonoBehaviour
 
     // -----------------------------------------------------------------------------------------------------
     
-    /// <summary> Generates 2D Simplex noise in octaves </summary>
-    public float OctaveSimplex2D(float x, float y)
+    /// <summary> Generates 2D noise in octaves </summary>
+    public float OctaveNoise(float x, float y)
     {
         float output = 0;
 
-        float currentAmplitude = amplitude;
+        float currentAmplitude = amplitude * chunkUnitSize;
         float currentFrequency = frequency;
         float currentWaveSpeed = waveSpeed;
 
@@ -240,6 +239,8 @@ public class TerrainManager : MonoBehaviour
             // !!!! OPTIMISE, precalculate repeated operations
             float xCoord = (x + xSeed) / scale * currentFrequency + octaveOffsets[i].x + waveOffset;
             float yCoord = (y + ySeed) / scale * currentFrequency + octaveOffsets[i].y + waveOffset;
+
+            //output += GerstnerNoise.GerstnerNoise2D(xCoord, yCoord, waveOffset, currentFrequency, currentAmplitude);  // BROKEN, no touchy
 
             output += OpenSimplex2.Noise2_UnskewedBase(worldSeed, xCoord, yCoord) / scale * currentFrequency * currentAmplitude;  // FASTEST NON-SIMD
             //output += fastNoiseLite.GetNoise(xCoord, yCoord) / scale * currentFrequency * currentAmplitude;
@@ -256,8 +257,8 @@ public class TerrainManager : MonoBehaviour
 
     // -----------------------------------------------------------------------------------------------------
 
-    /// <summary> Generates 3D Simplex noise in octaves </summary>
-    public float OctaveSimplex3D(float x, float y, float z)
+    /// <summary> Generates 3D noise in octaves </summary>
+    public float OctaveNoise(float x, float y, float z)
     {
         float output = 0;
 
