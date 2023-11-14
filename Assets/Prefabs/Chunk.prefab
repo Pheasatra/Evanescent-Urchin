@@ -104,14 +104,18 @@ MonoBehaviour:
   zChunk: 0
   chunkSize: 0
   chunkUnitSize: 0
-  noiseSize: 0
   lodDistance: 0
-  noiseMemory: []
+  noiseSize: 0
+  waveTipScale: 0.25
+  waveTipOffset: 0
+  fluidNoise: []
+  solidNoise: []
+  layers: 2
+  verticesPerFace: 4
+  triangleCornersPerFace: 6
   vertices: []
   uvs: []
   colours: []
   triangles: 
   debug: []
   debug2: []
-  verticeIndex: 0
-  triangleIndex: 0

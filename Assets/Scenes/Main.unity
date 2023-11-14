@@ -2042,8 +2042,9 @@ MonoBehaviour:
     type: 3}
   chunkPool: {fileID: 845988333}
   colours:
-  - {r: 0, g: 0.28235295, b: 0.3019608, a: 0.90588236}
-  - {r: 0, g: 0.5943396, b: 0.14655077, a: 1}
+  - {r: 0, g: 0.28235295, b: 0.3019608, a: 1}
+  - {r: 0, g: 0.57479274, b: 0.8509804, a: 1}
+  - {r: 0, g: 0.5471698, b: 0.13132076, a: 1}
   windDirection: {x: 0, y: 0, z: 0}
   seedRange: 16384
   manualSeed: 0
@@ -2080,7 +2081,7 @@ MonoBehaviour:
   visiblityLimit: 0
   chunkUnitSize: 4
   baseChunkSize: 16
-  renderDistance: 4
+  renderDistance: 3
   cameraChunkIndex: {x: 0, y: 0, z: 0}
   currentRenderDistance: 0
 --- !u!1 &1165111984

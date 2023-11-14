@@ -11,6 +11,8 @@ public class Chunk : MonoBehaviour
     [Header("References")]
     public TerrainManager terrainManager;
 
+    [Space(10)]
+
     public Mesh mesh;
     public MeshFilter meshFilter;
 
@@ -28,12 +30,32 @@ public class Chunk : MonoBehaviour
     public int chunkSize = 0;
     public float chunkUnitSize = 0;
 
-    public int noiseSize = 0;
+    [Space(10)]
 
     public int lodDistance = 0;
 
-    public float[] fluidNoise; 
-    public float[] solidNoise; 
+    [Header("Noise")]
+    public int noiseSize = 0;
+
+    [Space(10)]
+    public float waveTipScale = 1;
+    public float waveTipOffset = 1;
+
+    [HideInInspector] public float[] fluidNoise;
+    [HideInInspector] public float[] solidNoise;
+
+    [Header("Mesh")]
+    public int layers = 2;
+
+    [Space(10)]
+
+    public int verticesPerFace = 4;
+    public int triangleCornersPerFace = 6;
+
+    [Space(10)]
+
+    private int verticeIndex = 0;
+    private int windingIndex = 0;   // Note that each 'triangle' is actually a winding value, meaning triangle count / 3 = true triangle count
 
     [HideInInspector] public Vector3[] vertices;
     [HideInInspector] public Vector2[] uvs;
@@ -47,9 +69,6 @@ public class Chunk : MonoBehaviour
     [HideInInspector] public List<Vector3> debug;
     [HideInInspector] public List<Vector3> debug2;
 
-    public int verticeIndex = 0;
-    public int triangleIndex = 0;   // Note that each 'triangle' is actually a winding value, meaning triangle count / 3 = true triangle count
-
     // Start is called before the first frame update
     void Start()
     {
@@ -61,10 +80,10 @@ public class Chunk : MonoBehaviour
         meshFilter = GetComponent<MeshFilter>();
         meshFilter.mesh = mesh;
 
-        vertices = new Vector3[chunkSize * chunkSize * 4 * 2];  // 4 vertices per face, * 2 for both water and terrain
+        vertices = new Vector3[chunkSize * chunkSize * verticesPerFace * layers];  // 4 vertices per face, * 2 for both water and terrain
         uvs = new Vector2[vertices.Length];                 
         colours = new Color[vertices.Length];
-        triangles = new int[chunkSize * chunkSize * 6 * 2];     // 6 triangle corners per face (for winding), * 2 for both water and terrain
+        triangles = new int[chunkSize * chunkSize * triangleCornersPerFace * layers];     // 6 triangle corners per face (for winding), * 2 for both water and terrain
 
         // Set the noise memory size to be (chunk size + 1)^2 to account for the vertices on the very edges
         fluidNoise = new float[(chunkSize + 1) * (chunkSize + 1)];
@@ -72,6 +91,7 @@ public class Chunk : MonoBehaviour
 
         // Completly regenerate the mesh on start
         RegenerateMesh();
+        Reload();
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -80,7 +100,7 @@ public class Chunk : MonoBehaviour
     public void Reload()
     {
         // Generate our solid noise once when de-pooling or spawning our chunks
-        GenerateMemory(solidNoise, Time.timeSinceLevelLoad, terrainManager.noiseSettings[1]);
+        GenerateMemory(solidNoise, 0, terrainManager.noiseSettings[1]);
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -90,7 +110,7 @@ public class Chunk : MonoBehaviour
     {
         // There is surely a better way of doing this
         GenerateMemory(fluidNoise, Time.timeSinceLevelLoad, terrainManager.noiseSettings[0]);
-        UpdateMesh();
+        UpdateMesh(0);
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -110,7 +130,6 @@ public class Chunk : MonoBehaviour
             yIndex = i / noiseSize;
             xIndex = i % noiseSize;
 
-            //output[i] = terrainManager.OctaveSimplex(xIndex + positionOffset.x, yIndex + positionOffset.z, 0, time);
             output[i] = terrainManager.OctaveNoise(xIndex + positionOffset.x, yIndex + positionOffset.z, time, noiseSettings);
 
             //output[i] = Mathf.Sin(xIndex + positionOffset.x + time);                   // Wave Tester
@@ -121,7 +140,7 @@ public class Chunk : MonoBehaviour
     // -----------------------------------------------------------------------------------------------------
 
     /// <summary> Take and existing mesh and updates it's vertices without rebuilding it </summary>
-    public void UpdateMesh()
+    public void UpdateMesh(int layer)
     {
         verticeIndex = 0;
 
@@ -129,8 +148,6 @@ public class Chunk : MonoBehaviour
         int verticesPlus1;
         int verticesPlus2;  
         int verticesPlus3;
-
-        //Debug.Log(fluidNoise[((0 + 0) * noiseSize) + 0 + 0]);
 
         // For all tiles
         for (int x = 0; x < chunkSize; x++)
@@ -157,10 +174,10 @@ public class Chunk : MonoBehaviour
                 vertices[verticesPlus3].y = fluidNoise[((1 + y) * noiseSize) + 1 + x];
 
                 // Update our colours so we get dark troughs and vibrant transparent peaks
-                colours[verticesPlus0] = terrainManager.colours[0] * new Color(1, -vertices[verticesPlus0].y, -vertices[verticesPlus0].y) / 2;
-                colours[verticesPlus1] = terrainManager.colours[0] * new Color(1, -vertices[verticesPlus1].y, -vertices[verticesPlus1].y) / 2;
-                colours[verticesPlus2] = terrainManager.colours[0] * new Color(1, -vertices[verticesPlus2].y, -vertices[verticesPlus2].y) / 2;
-                colours[verticesPlus3] = terrainManager.colours[0] * new Color(1, -vertices[verticesPlus3].y, -vertices[verticesPlus3].y) / 2;
+                colours[verticesPlus0] = Color.Lerp(terrainManager.colours[0], terrainManager.colours[1], vertices[verticesPlus0].y * waveTipScale + waveTipOffset);
+                colours[verticesPlus1] = Color.Lerp(terrainManager.colours[0], terrainManager.colours[1], vertices[verticesPlus1].y * waveTipScale + waveTipOffset);
+                colours[verticesPlus2] = Color.Lerp(terrainManager.colours[0], terrainManager.colours[1], vertices[verticesPlus2].y * waveTipScale + waveTipOffset);
+                colours[verticesPlus3] = Color.Lerp(terrainManager.colours[0], terrainManager.colours[1], vertices[verticesPlus3].y * waveTipScale + waveTipOffset);
 
                 verticeIndex += 4;
 
@@ -177,10 +194,10 @@ public class Chunk : MonoBehaviour
                 vertices[verticesPlus2].y = solidNoise[((1 + y) * noiseSize) + 0 + x];
                 vertices[verticesPlus3].y = solidNoise[((1 + y) * noiseSize) + 1 + x];
 
-                colours[verticesPlus0] = terrainManager.colours[1];
-                colours[verticesPlus1] = terrainManager.colours[1];
-                colours[verticesPlus2] = terrainManager.colours[1];
-                colours[verticesPlus3] = terrainManager.colours[1];
+                colours[verticesPlus0] = terrainManager.colours[2];
+                colours[verticesPlus1] = terrainManager.colours[2];
+                colours[verticesPlus2] = terrainManager.colours[2];
+                colours[verticesPlus3] = terrainManager.colours[2];
 
                 verticeIndex += 4;
             }
@@ -190,7 +207,7 @@ public class Chunk : MonoBehaviour
         mesh.SetColors(colours);
 
         mesh.RecalculateNormals();
-        mesh.RecalculateTangents(); // Relates to normals maps, we can get away with not using it here even though we do use them
+        //mesh.RecalculateTangents(); // Relates to normals maps, we can get away with not using it here even though we do use them
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -199,7 +216,7 @@ public class Chunk : MonoBehaviour
     public void RegenerateMesh()
     {
         verticeIndex = 0;
-        triangleIndex = 0;
+        windingIndex = 0;
 
         mesh.Clear();
 
@@ -272,16 +289,16 @@ public class Chunk : MonoBehaviour
 
         // Triangle 1 and 2 for this quad
         // We take the winding value and add the vertices count minus the 4 vertices for each face, the following comments are the winding order
-        triangles[triangleIndex + 0] = verticesPlus1;    // 1
-        triangles[triangleIndex + 1] = verticesPlus2;    // 2
-        triangles[triangleIndex + 2] = verticesPlus3;    // 3
-        triangles[triangleIndex + 3] = verticesPlus0;    // 0
-        triangles[triangleIndex + 4] = verticesPlus2;    // 2
-        triangles[triangleIndex + 5] = verticesPlus1;    // 1
+        triangles[windingIndex + 0] = verticesPlus1;    // 1
+        triangles[windingIndex + 1] = verticesPlus2;    // 2
+        triangles[windingIndex + 2] = verticesPlus3;    // 3
+        triangles[windingIndex + 3] = verticesPlus0;    // 0
+        triangles[windingIndex + 4] = verticesPlus2;    // 2
+        triangles[windingIndex + 5] = verticesPlus1;    // 1
 
         // Add our vertice and winding counts for this face
         verticeIndex += 4;
-        triangleIndex += 6;
+        windingIndex += 6;
     }
 
     // -----------------------------------------------------------------------------------------------------
