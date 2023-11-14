@@ -2,6 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using static UnityEditor.Rendering.CameraUI;
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -35,6 +37,12 @@ public class NoiseSettings
     [Tooltip("Multiplies waveScale by octave count")]
     public float waveSubspeed;
 
+    [Space(10)]
+
+    public float[] amplitudes;
+    public float[] frequencies;
+    public float[] waveSpeeds;
+
     [Header("Seeds")]
     public bool manualSeeds = false;
 
@@ -53,18 +61,20 @@ public class NoiseSettings
 
     // -----------------------------------------------------------------------------------------------------
 
-    /// <summary>  </summary>
+    /// <summary> Generates new seeds </summary>
     public void UpdateSeeds()
     {
         switch (manualSeeds)
         {
-            // Randomly generate seed
-            case false:
-                xSeed = UnityEngine.Random.Range(-seedRange, seedRange);
-                ySeed = UnityEngine.Random.Range(-seedRange, seedRange);
-                zSeed = UnityEngine.Random.Range(-seedRange, seedRange);
-                break;
+            // Skip if manual seeds
+            case true:
+                return;
         }
+
+        // Randomly generate seeds
+        xSeed = UnityEngine.Random.Range(-seedRange, seedRange);
+        ySeed = UnityEngine.Random.Range(-seedRange, seedRange);
+        zSeed = UnityEngine.Random.Range(-seedRange, seedRange);
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -83,7 +93,32 @@ public class NoiseSettings
 
             octaveOffsets[x] = new Vector3(offsetX, offsetY, offsetZ);
         }
+    }
 
+    // -----------------------------------------------------------------------------------------------------
+
+    /// <summary> Calculates all the sub noise values and stores them in an octave ordered array </summary>
+    public void UpdateSubNoise()
+    {
+        amplitudes = new float[octaves];
+        frequencies = new float[octaves];
+        waveSpeeds = new float[octaves];
+
+        float currentAmplitude = amplitude * TerrainManager.terrainManager.chunkUnitSize;   // Scale with unit size
+        float currentFrequency = frequency;
+        float currentWaveSpeed = waveSpeed;
+
+        // For all octaves.
+        for (int x = 0; x < octaves; x++)
+        {
+            currentAmplitude *= persistance;
+            currentFrequency *= lacunarity;
+            currentWaveSpeed *= waveSubspeed;
+
+            amplitudes[x] = currentAmplitude;
+            frequencies[x] = currentFrequency;
+            waveSpeeds[x] = currentWaveSpeed;
+        }
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -95,10 +130,11 @@ public class NoiseSettings
 
         UpdateSeeds();
         UpdateOctaveOffsets();
+        UpdateSubNoise();
     }
 
     // -----------------------------------------------------------------------------------------------------
-
+    /*
     // Using a property we can update the octave offsets on set
     public int Octaves
     {
@@ -129,5 +165,5 @@ public class NoiseSettings
             scale = Math.Max(scale, 0.0001f);
             scale = value;
         }
-    }
+    }*/
 }

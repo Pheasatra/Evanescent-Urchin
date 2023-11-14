@@ -102,6 +102,12 @@ public class TerrainManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        // Update all of our settings realtime so we can play with variables
+        for (int x = 0; x < noiseSettings.Count; x++)
+        {
+            noiseSettings[x].UpdateSubNoise();
+        }
+
         oldCameraChunkIndex = cameraChunkIndex;
         cameraChunkIndex = FindChunkIndex(Camera.main.transform.position);
 
@@ -193,34 +199,27 @@ public class TerrainManager : MonoBehaviour
     {
         float output = 0;
 
-        float currentAmplitude = noiseSettings.amplitude * chunkUnitSize;   // Scale with unit size
-        float currentFrequency = noiseSettings.frequency;
-        float currentWaveSpeed = noiseSettings.waveSpeed;
-
         Vector3 waveDirection;
+
+        float positionScaledX = (x + noiseSettings.xSeed) / noiseSettings.scale;
+        float positionScaledY = (y + noiseSettings.ySeed) / noiseSettings.scale;
 
         // For all octaves.
         for (int i = 0; i < noiseSettings.octaves; i++)
         {
-            float waveOffset = time * currentWaveSpeed;
+            // Value that moves an axis in a direction at a set speed
+            float waveOffset = time * noiseSettings.waveSpeeds[i];
             waveDirection = windDirection * waveOffset;
-            //float frequencyScale = scale * currentFrequency;
 
-            // !!!! OPTIMISE, precalculate repeated operations
-            float xCoord = (x + noiseSettings.xSeed) / noiseSettings.scale * currentFrequency + noiseSettings.octaveOffsets[i].x + waveOffset;
-            float yCoord = (y + noiseSettings.ySeed) / noiseSettings.scale * currentFrequency + noiseSettings.octaveOffsets[i].y + waveOffset;
+            float xCoord = positionScaledX * noiseSettings.frequencies[i] + noiseSettings.octaveOffsets[i].x + waveOffset;
+            float yCoord = positionScaledY * noiseSettings.frequencies[i] + noiseSettings.octaveOffsets[i].y + waveOffset;
 
             //output += GerstnerNoise.GerstnerNoise2D(xCoord, yCoord, waveOffset, currentFrequency, currentAmplitude);  // BROKEN, no touchy
 
-             // We don't need to repeat scale or frequency
-            output += OpenSimplex2.Noise2_UnskewedBase(worldSeed, xCoord, yCoord) / noiseSettings.scale * currentFrequency * currentAmplitude;  // FASTEST NON-SIMD
+            output += OpenSimplex2.Noise2_UnskewedBase(worldSeed, xCoord, yCoord) * noiseSettings.amplitudes[i];  // FASTEST NON-SIMD
             //output += fastNoiseLite.GetNoise(xCoord, yCoord) / scale * currentFrequency * currentAmplitude;
             //output += terrainManager.fastNoise2.GenSingle2D(xCoord, yCoord, worldSeed) / scale * currentFrequency * currentAmplitude;
             //output += SimplexNoiseAll.Noise.Generate(xCoord, yCoord) / scale * currentFrequency * currentAmplitude;
-
-            currentAmplitude *= noiseSettings.persistance;
-            currentFrequency *= noiseSettings.lacunarity;
-            currentWaveSpeed /= noiseSettings.waveSubspeed;
         }
 
         return output;

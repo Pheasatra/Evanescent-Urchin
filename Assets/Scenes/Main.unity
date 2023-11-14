@@ -2052,13 +2052,16 @@ MonoBehaviour:
   noiseSettings:
   - name: Fluid
     scale: 2
-    amplitude: 6
+    amplitude: 1
     frequency: 0.1
     waveSpeed: 0.25
     octaves: 3
     persistance: 0.5
     lacunarity: 2
-    waveSubspeed: 0.9
+    waveSubspeed: 1.1
+    amplitudes: []
+    frequencies: []
+    waveSpeeds: []
     manualSeeds: 0
     xSeed: 0
     ySeed: 0
@@ -2066,13 +2069,16 @@ MonoBehaviour:
     octaveOffsets: []
   - name: Land
     scale: 2
-    amplitude: 20
+    amplitude: 2
     frequency: 0.1
     waveSpeed: 0.25
     octaves: 3
     persistance: 0.5
     lacunarity: 2
     waveSubspeed: 0.9
+    amplitudes: []
+    frequencies: []
+    waveSpeeds: []
     manualSeeds: 0
     xSeed: 0
     ySeed: 0
@@ -2081,7 +2087,7 @@ MonoBehaviour:
   visiblityLimit: 0
   chunkUnitSize: 4
   baseChunkSize: 16
-  renderDistance: 3
+  renderDistance: 2
   cameraChunkIndex: {x: 0, y: 0, z: 0}
   currentRenderDistance: 0
 --- !u!1 &1165111984

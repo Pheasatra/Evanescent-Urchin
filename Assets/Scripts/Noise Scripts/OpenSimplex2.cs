@@ -96,37 +96,45 @@ public static class OpenSimplex2
 
         if (a0 > 0)
         {
+            // Calculate and accumulate contribution from the first vertex.
             value = (a0 * a0) * (a0 * a0) * Grad(seed, xsbp, ysbp, dx0, dy0);
         }
 
         // Second vertex.
-        float a1 = (float)(2 * (1 + 2 * UNSKEW_2D) * (1 / UNSKEW_2D + 2)) * t + ((float)(-2 * (1 + 2 * UNSKEW_2D) * (1 + 2 * UNSKEW_2D)) + a0);
+        float a1 = (2 * (1 + 2 * (float)UNSKEW_2D) * (1 / (float)UNSKEW_2D + 2)) * t + ((-2 * (1 + 2 * (float)UNSKEW_2D) * (1 + 2 * (float)UNSKEW_2D)) + a0);
 
         if (a1 > 0)
         {
-            float dx1 = dx0 - (float)(1 + 2 * UNSKEW_2D);
-            float dy1 = dy0 - (float)(1 + 2 * UNSKEW_2D);
+            // Calculate and accumulate contribution from the second vertex.
+            float dx1 = dx0 - (1 + 2 * (float)UNSKEW_2D);
+            float dy1 = dy0 - (1 + 2 * (float)UNSKEW_2D);
             value += (a1 * a1) * (a1 * a1) * Grad(seed, xsbp + PRIME_X, ysbp + PRIME_Y, dx1, dy1);
         }
 
         // Third vertex.
+        float dx2, dy2, a2;
+
         if (dy0 > dx0)
         {
-            float dx2 = dx0 - (float)UNSKEW_2D;
-            float dy2 = dy0 - (float)(UNSKEW_2D + 1);
-            float a2 = RSQUARED_2D - dx2 * dx2 - dy2 * dy2;
+            dx2 = dx0 - (float)UNSKEW_2D;
+            dy2 = dy0 - ((float)UNSKEW_2D + 1);
+            a2 = RSQUARED_2D - dx2 * dx2 - dy2 * dy2;
+
             if (a2 > 0)
             {
+                // Calculate and accumulate contribution from the third vertex.
                 value += (a2 * a2) * (a2 * a2) * Grad(seed, xsbp, ysbp + PRIME_Y, dx2, dy2);
             }
         }
         else
         {
-            float dx2 = dx0 - (float)(UNSKEW_2D + 1);
-            float dy2 = dy0 - (float)UNSKEW_2D;
-            float a2 = RSQUARED_2D - dx2 * dx2 - dy2 * dy2;
+            dx2 = dx0 - ((float)UNSKEW_2D + 1);
+            dy2 = dy0 - (float)UNSKEW_2D;
+            a2 = RSQUARED_2D - dx2 * dx2 - dy2 * dy2;
+
             if (a2 > 0)
             {
+                // Calculate and accumulate contribution from the third vertex.
                 value += (a2 * a2) * (a2 * a2) * Grad(seed, xsbp + PRIME_X, ysbp, dx2, dy2);
             }
         }
