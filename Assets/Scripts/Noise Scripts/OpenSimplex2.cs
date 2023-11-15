@@ -2,7 +2,11 @@
  * K.jpg's OpenSimplex 2, faster variant
  */
 
+using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
+
+// -----------------------------------------------------------------------------------------------------
 
 public static class OpenSimplex2
 {
@@ -17,6 +21,11 @@ public static class OpenSimplex2
     private const double ROOT2OVER2 = 0.7071067811865476;
     private const double SKEW_2D = 0.366025403784439;
     private const double UNSKEW_2D = -0.21132486540518713;
+
+    // Pre computed helpers
+    private const float UNSKEW2D = -0.21132486540518713f; // Float version
+    private const float VERTEX2UNSCEW = 1 + 2 * UNSKEW2D;
+    private const float UNSKEWPLUS1 = UNSKEW2D + 1;
 
     private const double ROOT3OVER3 = 0.577350269189626;
     private const double FALLBACK_ROTATE_3D = 2.0 / 3.0;
@@ -46,6 +55,8 @@ public static class OpenSimplex2
      * Noise Evaluators
      */
 
+    // -----------------------------------------------------------------------------------------------------
+
     /**
      * 2D Simplex noise, standard lattice orientation.
      */
@@ -53,10 +64,14 @@ public static class OpenSimplex2
     {
         // Get points for A2* lattice
         double s = SKEW_2D * (x + y);
-        double xs = x + s, ys = y + s;
+
+        double xs = x + s;
+        double ys = y + s;
 
         return Noise2_UnskewedBase(seed, xs, ys);
     }
+
+    // -----------------------------------------------------------------------------------------------------
 
     /**
      * 2D Simplex noise, with Y pointing down the main diagonal.
@@ -74,73 +89,103 @@ public static class OpenSimplex2
         return Noise2_UnskewedBase(seed, yy + xx, yy - xx);
     }
 
-    /**
-     * 2D Simplex noise base.
-     */
-    public static float Noise2_UnskewedBase(long seed, double xs, double ys)
+    // -----------------------------------------------------------------------------------------------------
+
+    /// <summary> 2D Simplex noise base </summary>
+    public static float Noise2_UnskewedBase(long seed, double x, double y)
     {
         // Get base points and offsets.
-        int xsb = FastFloor(xs), ysb = FastFloor(ys);
-        float xi = (float)(xs - xsb), yi = (float)(ys - ysb);
+        int xFloor = FastFloor(x);
+        int yFloor = FastFloor(y);
+
+        float xRemainder = (float)(x - xFloor);
+        float yRemainder = (float)(y - yFloor);
 
         // Prime pre-multiplication for hash.
-        long xsbp = xsb * PRIME_X, ysbp = ysb * PRIME_Y;
+        long xHash = xFloor * PRIME_X;
+        long yHash = yFloor * PRIME_Y;
 
         // Unskew.
-        float t = (xi + yi) * (float)UNSKEW_2D;
-        float dx0 = xi + t, dy0 = yi + t;
+        float t = (xRemainder + yRemainder) * UNSKEW2D;
+
+        float xUnscewed0 = xRemainder + t;
+        float yUnscewed0 = yRemainder + t;
 
         // First vertex.
         float value = 0;
-        float a0 = RSQUARED_2D - dx0 * dx0 - dy0 * dy0;
 
-        if (a0 > 0)
+        float vertex0 = RSQUARED_2D - xUnscewed0 * xUnscewed0 - yUnscewed0 * yUnscewed0;
+        float vertex0Pow2 = vertex0 * vertex0;
+
+        switch (vertex0 > 0)
         {
-            // Calculate and accumulate contribution from the first vertex.
-            value = (a0 * a0) * (a0 * a0) * Grad(seed, xsbp, ysbp, dx0, dy0);
+            case true:
+                // Calculate and accumulate contribution from the first vertex.
+                value = vertex0Pow2 * vertex0Pow2 * Grad(seed, xHash, yHash, xUnscewed0, yUnscewed0);
+                break;
         }
 
         // Second vertex.
-        float a1 = (2 * (1 + 2 * (float)UNSKEW_2D) * (1 / (float)UNSKEW_2D + 2)) * t + ((-2 * (1 + 2 * (float)UNSKEW_2D) * (1 + 2 * (float)UNSKEW_2D)) + a0);
+        float vertex1 = (2 * VERTEX2UNSCEW * (1 / UNSKEW2D + 2)) * t + ((-2 * VERTEX2UNSCEW * VERTEX2UNSCEW) + vertex0);
+        float vertex1Pow2 = vertex1 * vertex1;
 
-        if (a1 > 0)
+        switch (vertex1 > 0)
         {
-            // Calculate and accumulate contribution from the second vertex.
-            float dx1 = dx0 - (1 + 2 * (float)UNSKEW_2D);
-            float dy1 = dy0 - (1 + 2 * (float)UNSKEW_2D);
-            value += (a1 * a1) * (a1 * a1) * Grad(seed, xsbp + PRIME_X, ysbp + PRIME_Y, dx1, dy1);
+            case true:
+                // Calculate and accumulate contribution from the second vertex.
+                float xUnscewed1 = xUnscewed0 - VERTEX2UNSCEW;
+                float yUnscewed1 = yUnscewed0 - VERTEX2UNSCEW;
+
+                value += vertex1Pow2 * vertex1Pow2 * Grad(seed, xHash + PRIME_X, yHash + PRIME_Y, xUnscewed1, yUnscewed1);
+                break;
         }
 
         // Third vertex.
-        float dx2, dy2, a2;
+        float xUnscewed2 = xUnscewed0;
+        float yUnscewed2 = yUnscewed0;
 
-        if (dy0 > dx0)
+        float vertex2;
+        float vertex2Pow4;
+
+        switch (yUnscewed0 > xUnscewed0)
         {
-            dx2 = dx0 - (float)UNSKEW_2D;
-            dy2 = dy0 - ((float)UNSKEW_2D + 1);
-            a2 = RSQUARED_2D - dx2 * dx2 - dy2 * dy2;
+            case true:
+                xUnscewed2 -= UNSKEW2D;
+                yUnscewed2 -= UNSKEWPLUS1;
 
-            if (a2 > 0)
-            {
-                // Calculate and accumulate contribution from the third vertex.
-                value += (a2 * a2) * (a2 * a2) * Grad(seed, xsbp, ysbp + PRIME_Y, dx2, dy2);
-            }
-        }
-        else
-        {
-            dx2 = dx0 - ((float)UNSKEW_2D + 1);
-            dy2 = dy0 - (float)UNSKEW_2D;
-            a2 = RSQUARED_2D - dx2 * dx2 - dy2 * dy2;
+                vertex2 = RSQUARED_2D - xUnscewed2 * xUnscewed2 - yUnscewed2 * yUnscewed2;
+                vertex2Pow4 = vertex2 * vertex2 * vertex2 * vertex2;
 
-            if (a2 > 0)
-            {
-                // Calculate and accumulate contribution from the third vertex.
-                value += (a2 * a2) * (a2 * a2) * Grad(seed, xsbp + PRIME_X, ysbp, dx2, dy2);
-            }
+                switch (vertex2 > 0)
+                {
+                    case true:
+                        // Calculate and accumulate contribution from the third vertex.
+                        value += vertex2Pow4 * Grad(seed, xHash, yHash + PRIME_Y, xUnscewed2, yUnscewed2);
+                        break;
+                }
+                break;
+
+            case false:
+                xUnscewed2 -= UNSKEWPLUS1;
+                yUnscewed2 -= UNSKEW2D;
+
+                vertex2 = RSQUARED_2D - xUnscewed2 * xUnscewed2 - yUnscewed2 * yUnscewed2;
+                vertex2Pow4 = vertex2 * vertex2 * vertex2 * vertex2;
+
+                switch (vertex2 > 0)
+                {
+                    case true:
+                        // Calculate and accumulate contribution from the third vertex.
+                        value += vertex2Pow4 * Grad(seed, xHash + PRIME_X, yHash, xUnscewed2, yUnscewed2);
+                        break;
+                }
+                break;
         }
 
         return value;
     }
+
+    // -----------------------------------------------------------------------------------------------------
 
     /**
      * 3D OpenSimplex2 noise, with better visual isotropy in (X, Y).
@@ -166,6 +211,8 @@ public static class OpenSimplex2
         return Noise3_UnrotatedBase(seed, xr, yr, zr);
     }
 
+    // -----------------------------------------------------------------------------------------------------
+
     /**
      * 3D OpenSimplex2 noise, with better visual isotropy in (X, Z).
      * Recommended for 3D terrain and time-varied animations.
@@ -190,6 +237,8 @@ public static class OpenSimplex2
         return Noise3_UnrotatedBase(seed, xr, yr, zr);
     }
 
+    // -----------------------------------------------------------------------------------------------------
+
     /**
      * 3D OpenSimplex2 noise, fallback rotation option
      * Use Noise3_ImproveXY or Noise3_ImproveXZ instead, wherever appropriate.
@@ -205,6 +254,8 @@ public static class OpenSimplex2
         // Evaluate both lattices to form a BCC lattice.
         return Noise3_UnrotatedBase(seed, xr, yr, zr);
     }
+
+    // -----------------------------------------------------------------------------------------------------
 
     /**
      * Generate overlapping cubic lattices for 3D OpenSimplex2 noise.
@@ -301,6 +352,8 @@ public static class OpenSimplex2
         return value;
     }
 
+    // -----------------------------------------------------------------------------------------------------
+
     /**
      * 4D OpenSimplex2 noise, with XYZ oriented like Noise3_ImproveXY
      * and W for an extra degree of freedom. W repeats eventually.
@@ -319,6 +372,8 @@ public static class OpenSimplex2
 
         return Noise4_UnskewedBase(seed, xr, yr, zr, wr);
     }
+
+    // -----------------------------------------------------------------------------------------------------
 
     /**
      * 4D OpenSimplex2 noise, with XYZ oriented like Noise3_ImproveXZ
@@ -339,6 +394,8 @@ public static class OpenSimplex2
         return Noise4_UnskewedBase(seed, xr, yr, zr, wr);
     }
 
+    // -----------------------------------------------------------------------------------------------------
+
     /**
      * 4D OpenSimplex2 noise, with XYZ oriented like Noise3_Fallback
      * and W for an extra degree of freedom. W repeats eventually.
@@ -355,6 +412,8 @@ public static class OpenSimplex2
         return Noise4_UnskewedBase(seed, xs, ys, zs, ws);
     }
 
+    // -----------------------------------------------------------------------------------------------------
+
     /**
      * 4D OpenSimplex2 noise, fallback lattice orientation.
      */
@@ -366,6 +425,8 @@ public static class OpenSimplex2
 
         return Noise4_UnskewedBase(seed, xs, ys, zs, ws);
     }
+
+    // -----------------------------------------------------------------------------------------------------
 
     /**
     * 4D OpenSimplex2 noise base.
@@ -458,52 +519,73 @@ public static class OpenSimplex2
         return value;
     }
 
+    // -----------------------------------------------------------------------------------------------------
+
     /*
      * Utility
      */
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static float Grad(long seed, long xsvp, long ysvp, float dx, float dy)
+    private static float Grad(long seed, long xHash, long yHash, float dx, float dy)
     {
-        long hash = seed ^ xsvp ^ ysvp;
-        hash *= HASH_MULTIPLIER;
-        hash ^= hash >> (64 - N_GRADS_2D_EXPONENT + 1);
-        int gi = (int)hash & ((N_GRADS_2D - 1) << 1);
-        return GRADIENTS_2D[gi | 0] * dx + GRADIENTS_2D[gi | 1] * dy;
+        // Combine hashes and apply multiplier in a single step.
+        long hash = (seed ^ xHash ^ yHash) * HASH_MULTIPLIER;
+
+        // Use a faster modulo operation for powers of 2.
+        int gi = (int)(hash & (N_GRADS_2D - 1));
+
+        // Retrieve gradient values directly without accessing array indices.
+        float gx = GRADIENTS_2D[gi << 1];
+        float gy = GRADIENTS_2D[(gi << 1) + 1];
+
+        // Return the dot product of the gradient and input vector.
+        return gx * dx + gy * dy;
     }
 
+    // -----------------------------------------------------------------------------------------------------
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static float Grad(long seed, long xrvp, long yrvp, long zrvp, float dx, float dy, float dz)
+    private static float Grad(long seed, long xHash, long yHash, long zrvp, float dx, float dy, float dz)
     {
-        long hash = (seed ^ xrvp) ^ (yrvp ^ zrvp);
+        long hash = (seed ^ xHash) ^ (yHash ^ zrvp);
         hash *= HASH_MULTIPLIER;
         hash ^= hash >> (64 - N_GRADS_3D_EXPONENT + 2);
         int gi = (int)hash & ((N_GRADS_3D - 1) << 2);
+
         return GRADIENTS_3D[gi | 0] * dx + GRADIENTS_3D[gi | 1] * dy + GRADIENTS_3D[gi | 2] * dz;
     }
 
+    // -----------------------------------------------------------------------------------------------------
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static float Grad(long seed, long xsvp, long ysvp, long zsvp, long wsvp, float dx, float dy, float dz, float dw)
+    private static float Grad(long seed, long xHash, long yHash, long zsvp, long wsvp, float dx, float dy, float dz, float dw)
     {
-        long hash = seed ^ (xsvp ^ ysvp) ^ (zsvp ^ wsvp);
+        long hash = seed ^ (xHash ^ yHash) ^ (zsvp ^ wsvp);
         hash *= HASH_MULTIPLIER;
         hash ^= hash >> (64 - N_GRADS_4D_EXPONENT + 2);
         int gi = (int)hash & ((N_GRADS_4D - 1) << 2);
+
         return (GRADIENTS_4D[gi | 0] * dx + GRADIENTS_4D[gi | 1] * dy) + (GRADIENTS_4D[gi | 2] * dz + GRADIENTS_4D[gi | 3] * dw);
     }
+
+    // -----------------------------------------------------------------------------------------------------
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int FastFloor(double x)
     {
-        int xi = (int)x;
-        return x < xi ? xi - 1 : xi;
+        int xTrunc = (int)x;
+        return x < xTrunc ? xTrunc - 1 : xTrunc;
     }
+
+    // -----------------------------------------------------------------------------------------------------
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int FastRound(double x)
     {
         return x < 0 ? (int)(x - 0.5) : (int)(x + 0.5);
     }
+
+    // -----------------------------------------------------------------------------------------------------
 
     /*
      * Gradients
@@ -512,6 +594,8 @@ public static class OpenSimplex2
     private static readonly float[] GRADIENTS_2D;
     private static readonly float[] GRADIENTS_3D;
     private static readonly float[] GRADIENTS_4D;
+
+    // -----------------------------------------------------------------------------------------------------
 
     static OpenSimplex2()
     {

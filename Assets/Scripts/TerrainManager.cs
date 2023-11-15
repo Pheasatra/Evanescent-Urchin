@@ -199,27 +199,33 @@ public class TerrainManager : MonoBehaviour
     {
         float output = 0;
 
-        Vector3 waveDirection;
+        //Vector3 waveDirection;
 
         float positionScaledX = (x + noiseSettings.xSeed) / noiseSettings.scale;
         float positionScaledY = (y + noiseSettings.ySeed) / noiseSettings.scale;
-
+        
         // For all octaves.
         for (int i = 0; i < noiseSettings.octaves; i++)
         {
             // Value that moves an axis in a direction at a set speed
             float waveOffset = time * noiseSettings.waveSpeeds[i];
-            waveDirection = windDirection * waveOffset;
+            //waveDirection = windDirection * waveOffset; // Vector3 calculations are expensive as  f u c c
+
+            // !!! octave offsets should be with the seeds in positionScaled, right now they are not subject to scale
 
             float xCoord = positionScaledX * noiseSettings.frequencies[i] + noiseSettings.octaveOffsets[i].x + waveOffset;
             float yCoord = positionScaledY * noiseSettings.frequencies[i] + noiseSettings.octaveOffsets[i].y + waveOffset;
 
-            //output += GerstnerNoise.GerstnerNoise2D(xCoord, yCoord, waveOffset, currentFrequency, currentAmplitude);  // BROKEN, no touchy
+            //output += GerstnerNoise.GerstnerNoise2D(xCoord, yCoord, waveOffset, currentFrequency, currentAmplitude);  // BROKEN
 
-            output += OpenSimplex2.Noise2_UnskewedBase(worldSeed, xCoord, yCoord) * noiseSettings.amplitudes[i];  // FASTEST NON-SIMD
-            //output += fastNoiseLite.GetNoise(xCoord, yCoord) / scale * currentFrequency * currentAmplitude;
-            //output += terrainManager.fastNoise2.GenSingle2D(xCoord, yCoord, worldSeed) / scale * currentFrequency * currentAmplitude;
-            //output += SimplexNoiseAll.Noise.Generate(xCoord, yCoord) / scale * currentFrequency * currentAmplitude;
+            // !!! Wait, theoretically we don't need to calculate simplex noise in the for loop, we can just sum the x and y coords and the amplitudes and plug it in last
+
+            output += (float)simplexNoise.SimplexNoise2D(xCoord, yCoord) * noiseSettings.amplitudes[i];/*
+            output += (float)simplexNoise.SimplexNoise3D(xCoord, yCoord, 0) * noiseSettings.amplitudes[i];
+            output += OpenSimplex2.Noise2_UnskewedBase(worldSeed, xCoord, yCoord) * noiseSettings.amplitudes[i];
+            output += fastNoiseLite.GetNoise(xCoord, yCoord) * noiseSettings.amplitudes[i];
+            output += terrainManager.fastNoise2.GenSingle2D(xCoord, yCoord, worldSeed) * noiseSettings.amplitudes[i];
+            output += SimplexNoiseAll.Noise.Generate(xCoord, yCoord) * noiseSettings.amplitudes[i];*/
         }
 
         return output;

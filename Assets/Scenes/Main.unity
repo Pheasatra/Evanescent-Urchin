@@ -2068,7 +2068,7 @@ MonoBehaviour:
     zSeed: 0
     octaveOffsets: []
   - name: Land
-    scale: 2
+    scale: 20
     amplitude: 2
     frequency: 0.1
     waveSpeed: 0.25

@@ -123,6 +123,8 @@ public class Chunk : MonoBehaviour
 
         Vector3 positionOffset = new Vector3(xChunk * chunkSize , 0.0f, zChunk * chunkSize);
 
+        // !!! Try parralel for and see if it's faster (And WebGL compatible)
+
         // For the length of simplex noise
         for (int i = 0; i < output.Length; i++)
         {

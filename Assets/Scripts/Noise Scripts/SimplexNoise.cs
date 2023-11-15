@@ -1,11 +1,14 @@
 using System.Runtime.CompilerServices;
 using Unity.Mathematics;
 using UnityEngine;
+using static SimplexNoise;
 
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------------------------------------
 
 public class SimplexNoise
 {
+    // -----------------------------------------------------------------------------------------------------
+
     // Simplex Noise
     private static Grad[] grad3 = new Grad[12]
         {
@@ -13,6 +16,8 @@ public class SimplexNoise
             new Grad(1, 0, 1), new Grad(-1, 0, 1), new Grad(1, 0, -1), new Grad(-1, 0, -1),
             new Grad(0, 1, 1), new Grad(0, -1, 1), new Grad(0, 1, -1), new Grad(0, -1, -1)
         };
+
+    // -----------------------------------------------------------------------------------------------------
 
     private static short[] p = new short[256]
         {
@@ -31,14 +36,20 @@ public class SimplexNoise
             138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180
         };
 
+    // -----------------------------------------------------------------------------------------------------
+
     // To remove the need for index wrapping, double the permutation table length
     private static short[] perm = new short[512];
     private static short[] permMod12 = new short[512];
 
-    private float F3 = 0;
-    private float G3 = 0;
+    private double F2 = 0.5 * (Mathf.Sqrt(3.0f) - 1.0);
+    private double G2 = (3.0 - Mathf.Sqrt(3.0f)) / 6.0;
+    private double G2CornerOffsets;
 
-    //-----------------------------------------------------------------------
+    private double F3 = 1.0f / 3.0f;
+    private double G3 = 1.0f / 6.0f;
+
+    // -----------------------------------------------------------------------------------------------------
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Setup()
@@ -50,31 +61,152 @@ public class SimplexNoise
             permMod12[i] = (short)(perm[i] % 12);
         }
 
-        F3 = 1.0f / 3.0f;
-        G3 = 1.0f / 6.0f;
+        G2CornerOffsets = 2.0 * G2;
     }
 
-    //-----------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------
 
-    // Way too big for this
-    //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public float SimplexNoise3D(float x, float y, float z)
+    //The fastest simplex noise in the west 
+    //https://gist.github.com/boj/1759876
+
+    // 2D simplex noise 
+    // Functions inlined and variables precomputed for maximum performance (8.5 times faster than the fastest in the west)
+    public double SimplexNoise2D(double xin, double yin)
     {
-        float n0, n1, n2, n3; // Noise contributions from the four corners
-                              // Skew the input space to determine which simplex cell we're in
-        float s = (x + y + z) * F3; // Very nice and simple skew factor for 3D
+        // Noise contributions from the three corners
+        double n0;
+        double n1;
+        double n2;
+
+        // Skew the input space to determine which simplex cell we're in
+        double s = (xin + yin) * F2; // Hairy factor for 2D
+
+        // Semi-Inlined FastFloor for to save 0.75ms 
+        double floorInX = xin + s;
+        double floorInY = yin + s;
+
+        int xi = (int)floorInX;
+        int yi = (int)floorInY;
+
+        int i = floorInX < xi ? xi - 1 : xi;
+        int j = floorInY < yi ? yi - 1 : yi;
+
+        //int i = FastFloor(xin + s);
+        //int j = FastFloor(yin + s);
+
+        double t = (i + j) * G2;
+        double X0 = i - t; // Unskew the cell origin back to (x,y) space
+        double Y0 = j - t;
+        double x0 = xin - X0; // The x,y distances from the cell origin
+        double y0 = yin - Y0;
+
+        // For the 2D case, the simplex shape is an equilateral triangle.
+        // Determine which simplex we are in.
+        // Offsets for second (middle) corner of simplex in (i,j) coords
+        int i1; 
+        int j1;
+
+        // lower triangle, XY order: (0,0)->(1,0)->(1,1)
+        // upper triangle, YX order: (0,0)->(0,1)->(1,1)
+        // A step of (1,0) in (i,j) means a step of (1-c,-c) in (x,y), and
+        // a step of (0,1) in (i,j) means a step of (-c,1-c) in (x,y), where
+        // c = (3-Sqrt(3))/6
+        switch (x0 > y0)
+        {
+            case true:
+                i1 = 1; // lower triangle, XY order: (0,0)->(1,0)->(1,1)
+                j1 = 0; // upper triangle, YX order: (0,0)->(0,1)->(1,1)
+                break;
+
+            case false:
+                i1 = 0; // A step of (1,0) in (i,j) means a step of (1-c,-c) in (x,y), and
+                j1 = 1; // a step of (0,1) in (i,j) means a step of (-c,1-c) in (x,y), where
+                break;
+        }
+
+        double x1 = x0 - i1 + G2; // Offsets for middle corner in (x,y) unskewed coords
+        double y1 = y0 - j1 + G2;
+        double x2 = x0 - 1.0 + G2CornerOffsets; // Offsets for last corner in (x,y) unskewed coords
+        double y2 = y0 - 1.0 + G2CornerOffsets;
+
+        // Work out the hashed gradient indices of the three simplex corners
+        int ii = i & 255;
+        int jj = j & 255;
+
+        int gi0 = perm[ii + perm[jj]] % 12;
+        int gi1 = perm[ii + i1 + perm[jj + j1]] % 12;
+        int gi2 = perm[ii + 1 + perm[jj + 1]] % 12;
+
+        // Calculate the contribution from the three corners
+        double t0 = 0.5 - x0 * x0 - y0 * y0;
+        double t1 = 0.5 - x1 * x1 - y1 * y1;
+        double t2 = 0.5 - x2 * x2 - y2 * y2;
+
+        switch (t0 < 0)
+        {
+            case true:
+                n0 = 0.0;
+                break;
+
+            case false:
+                t0 *= t0;
+                //n0 = t0 * t0 * Dot(grad3[gi0], x0, y0);  // (x,y) of grad3 used for 2D gradient
+                // Inlined Dot for mega performance
+                n0 = t0 * t0 * (grad3[gi0].x * x0 + grad3[gi0].y * y0);  // (x,y) of grad3 used for 2D gradient
+                break;
+        }
+
+        switch (t1 < 0)
+        {
+            case true:
+                n1 = 0.0;
+                break;
+
+            case false:
+                t1 *= t1;
+                n1 = t1 * t1 * (grad3[gi1].x * x1 + grad3[gi1].y * y1);
+                //n1 = t1 * t1 * Dot(grad3[gi1], x1, y1);
+                break;
+        }
+
+
+        switch (t2 < 0)
+        {
+            case true:
+                n2 = 0.0;
+                break;
+
+            case false:
+                t2 *= t2;
+                n2 = t2 * t2 * (grad3[gi2].x * x2 + grad3[gi2].y * y2);
+                //n2 = t2 * t2 * Dot(grad3[gi2], x2, y2);
+                break;
+        }
+
+        // Add contributions from each corner to get the final noise value.
+        // The result is scaled to return values in the interval [-1,1].
+        return 70.0 * (n0 + n1 + n2);
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+
+    public double SimplexNoise3D(float x, float y, float z)
+    {
+        double n0, n1, n2, n3; // Noise contributions from the four corners
+                               // Skew the input space to determine which simplex cell we're in
+        double s = (x + y + z) * F3; // Very nice and simple skew factor for 3D
 
         int i = FastFloor(x + s);
         int j = FastFloor(y + s);
         int k = FastFloor(z + s);
 
-        float t = (i + j + k) * G3;
-        float X0 = i - t; // Unskew the cell origin back to (x,y,z) space
-        float Y0 = j - t;
-        float Z0 = k - t;
-        float x0 = x - X0; // The x,y,z distances from the cell origin
-        float y0 = y - Y0;
-        float z0 = z - Z0;
+        double t = (i + j + k) * G3;
+        double X0 = i - t; // Unskew the cell origin back to (x,y,z) space
+        double Y0 = j - t;
+        double Z0 = k - t;
+        double x0 = x - X0; // The x,y,z distances from the cell origin
+        double y0 = y - Y0;
+        double z0 = z - Z0;
 
         // For the 3D case, the simplex shape is a slightly irregular tetrahedron.
         // Determine which simplex we are in.
@@ -138,15 +270,15 @@ public class SimplexNoise
         // a step of (0,1,0) in (i,j,k) means a step of (-c,1-c,-c) in (x,y,z), and
         // a step of (0,0,1) in (i,j,k) means a step of (-c,-c,1-c) in (x,y,z), where
         // c = 1/6.
-        float x1 = x0 - i1 + G3; // Offsets for second corner in (x,y,z) coords
-        float y1 = y0 - j1 + G3;
-        float z1 = z0 - k1 + G3;
-        float x2 = x0 - i2 + 2.0f * G3; // Offsets for third corner in (x,y,z) coords
-        float y2 = y0 - j2 + 2.0f * G3;
-        float z2 = z0 - k2 + 2.0f * G3;
-        float x3 = x0 - 1.0f + 3.0f * G3; // Offsets for last corner in (x,y,z) coords
-        float y3 = y0 - 1.0f + 3.0f * G3;
-        float z3 = z0 - 1.0f + 3.0f * G3;
+        double x1 = x0 - i1 + G3; // Offsets for second corner in (x,y,z) coords
+        double y1 = y0 - j1 + G3;
+        double z1 = z0 - k1 + G3;
+        double x2 = x0 - i2 + 2.0f * G3; // Offsets for third corner in (x,y,z) coords
+        double y2 = y0 - j2 + 2.0f * G3;
+        double z2 = z0 - k2 + 2.0f * G3;
+        double x3 = x0 - 1.0f + 3.0f * G3; // Offsets for last corner in (x,y,z) coords
+        double y3 = y0 - 1.0f + 3.0f * G3;
+        double z3 = z0 - 1.0f + 3.0f * G3;
 
         // Work out the hashed gradient indices of the four simplex corners
         int ii = i & 255;
@@ -158,10 +290,10 @@ public class SimplexNoise
         int gi3 = permMod12[ii + 1 + perm[jj + 1 + perm[kk + 1]]];
 
         // Calculate the contribution from the four corners
-        float t0 = 0.5f - x0 * x0 - y0 * y0 - z0 * z0;
-        float t1 = 0.5f - x1 * x1 - y1 * y1 - z1 * z1;
-        float t2 = 0.5f - x2 * x2 - y2 * y2 - z2 * z2;
-        float t3 = 0.5f - x3 * x3 - y3 * y3 - z3 * z3;
+        double t0 = 0.5f - x0 * x0 - y0 * y0 - z0 * z0;
+        double t1 = 0.5f - x1 * x1 - y1 * y1 - z1 * z1;
+        double t2 = 0.5f - x2 * x2 - y2 * y2 - z2 * z2;
+        double t3 = 0.5f - x3 * x3 - y3 * y3 - z3 * z3;
 
         switch (t0 < 0)
         {
@@ -213,43 +345,41 @@ public class SimplexNoise
 
         // Add contributions from each corner to get the final noise value.
         // The result is scaled to stay just inside [-1, 1]
-        return 32.0f * (n0 + n1 + n2 + n3);
+        return 32.0 * (n0 + n1 + n2 + n3);
     }
 
-    //-----------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------
 
     // This method is a *lot* faster than using (int)Math.floor(x)
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public int FastFloor(float x)
+    public static int FastFloor(double x)
     {
         int xi = (int)x;
         return x < xi ? xi - 1 : xi;
     }
 
-    //-----------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float Dot(Grad grad, float x, float y, float z)
+    public static double Dot(Grad grad, double x, double y, double z)
     {
         return grad.x * x + grad.y * y + grad.z * z;
     }
 
-    //-----------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float Dot(Grad grad, float x, float y)
+    public static double Dot(Grad grad, double x, double y)
     {
         return grad.x * x + grad.y * y;
     }
 
-    //-----------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------
 
-    /// <summary> Literally just Vector3 without the vectors </summary>
     public struct Grad
     {
         public float x, y, z;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Grad(float x, float y, float z)
         {
             this.x = x;
