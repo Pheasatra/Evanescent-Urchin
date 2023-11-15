@@ -44,10 +44,13 @@ public class SimplexNoise
 
     private double F2 = 0.5 * (Mathf.Sqrt(3.0f) - 1.0);
     private double G2 = (3.0 - Mathf.Sqrt(3.0f)) / 6.0;
-    private double G2CornerOffsets;
+    private double G2Times2;
 
+    // Very nice and simple skew factor for 3D
     private double F3 = 1.0f / 3.0f;
     private double G3 = 1.0f / 6.0f;
+    private double G3Times2;
+    private double G3Times3;
 
     // -----------------------------------------------------------------------------------------------------
 
@@ -61,7 +64,10 @@ public class SimplexNoise
             permMod12[i] = (short)(perm[i] % 12);
         }
 
-        G2CornerOffsets = 2.0 * G2;
+        G2Times2 = 2.0 * G2;
+
+        G3Times2 = 2.0 * G3;
+        G3Times3 = 3.0 * G3;
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -71,7 +77,7 @@ public class SimplexNoise
 
     // 2D simplex noise 
     // Functions inlined and variables precomputed for maximum performance (8.5 times faster than the fastest in the west)
-    public double SimplexNoise2D(double xin, double yin)
+    public double SimplexNoise2D(double x, double y)
     {
         // Noise contributions from the three corners
         double n0;
@@ -79,11 +85,11 @@ public class SimplexNoise
         double n2;
 
         // Skew the input space to determine which simplex cell we're in
-        double s = (xin + yin) * F2; // Hairy factor for 2D
+        double s = (x + y) * F2; // Hairy factor for 2D
 
         // Semi-Inlined FastFloor for to save 0.75ms 
-        double floorInX = xin + s;
-        double floorInY = yin + s;
+        double floorInX = x + s;
+        double floorInY = y + s;
 
         int xi = (int)floorInX;
         int yi = (int)floorInY;
@@ -97,8 +103,8 @@ public class SimplexNoise
         double t = (i + j) * G2;
         double X0 = i - t; // Unskew the cell origin back to (x,y) space
         double Y0 = j - t;
-        double x0 = xin - X0; // The x,y distances from the cell origin
-        double y0 = yin - Y0;
+        double x0 = x - X0; // The x,y distances from the cell origin
+        double y0 = y - Y0;
 
         // For the 2D case, the simplex shape is an equilateral triangle.
         // Determine which simplex we are in.
@@ -124,10 +130,13 @@ public class SimplexNoise
                 break;
         }
 
-        double x1 = x0 - i1 + G2; // Offsets for middle corner in (x,y) unskewed coords
+        // Offsets for middle corner in (x,y) unskewed coords
+        double x1 = x0 - i1 + G2; 
         double y1 = y0 - j1 + G2;
-        double x2 = x0 - 1.0 + G2CornerOffsets; // Offsets for last corner in (x,y) unskewed coords
-        double y2 = y0 - 1.0 + G2CornerOffsets;
+
+        // Offsets for last corner in (x,y) unskewed coords
+        double x2 = x0 - 1.0 + G2Times2;
+        double y2 = y0 - 1.0 + G2Times2;
 
         // Work out the hashed gradient indices of the three simplex corners
         int ii = i & 255;
@@ -192,26 +201,56 @@ public class SimplexNoise
 
     public double SimplexNoise3D(float x, float y, float z)
     {
-        double n0, n1, n2, n3; // Noise contributions from the four corners
-                               // Skew the input space to determine which simplex cell we're in
-        double s = (x + y + z) * F3; // Very nice and simple skew factor for 3D
+        // Noise contributions from the four corners
+        double n0;
+        double n1;
+        double n2;
+        double n3;
 
-        int i = FastFloor(x + s);
-        int j = FastFloor(y + s);
-        int k = FastFloor(z + s);
+        // Skew the input space to determine which simplex cell we're in
+        double s = (x + y + z) * F3; 
+
+        // Semi-Inlined FastFloor for to save 0.75ms 
+        double floorInX = x + s;
+        double floorInY = y + s;
+        double floorInZ = z + s;
+
+        int xi = (int)floorInX;
+        int yi = (int)floorInY;
+        int zi = (int)floorInZ;
+
+        int i = floorInX < xi ? xi - 1 : xi;
+        int j = floorInY < yi ? yi - 1 : yi;
+        int k = floorInZ < zi ? zi - 1 : zi;
+
+        //int i = FastFloor(x + s);
+        //int j = FastFloor(y + s);
+        //int k = FastFloor(z + s);
 
         double t = (i + j + k) * G3;
-        double X0 = i - t; // Unskew the cell origin back to (x,y,z) space
+
+        // Unskew the cell origin back to (x,y,z) space
+        double X0 = i - t;
         double Y0 = j - t;
         double Z0 = k - t;
-        double x0 = x - X0; // The x,y,z distances from the cell origin
+
+        // The x, y, z distances from the cell origin
+        double x0 = x - X0;
         double y0 = y - Y0;
         double z0 = z - Z0;
 
         // For the 3D case, the simplex shape is a slightly irregular tetrahedron.
         // Determine which simplex we are in.
-        int i1, j1, k1; // Offsets for second corner of simplex in (i,j,k) coords
-        int i2, j2, k2; // Offsets for third corner of simplex in (i,j,k) coords
+
+        // Offsets for second corner of simplex in (i,j,k) coords
+        int i1;
+        int j1;
+        int k1;
+
+        // Offsets for third corner of simplex in (i,j,k) coords
+        int i2;
+        int j2;
+        int k2;
 
         switch (x0 >= y0)
         {
@@ -269,21 +308,28 @@ public class SimplexNoise
         // A step of (1,0,0) in (i,j,k) means a step of (1-c,-c,-c) in (x,y,z),
         // a step of (0,1,0) in (i,j,k) means a step of (-c,1-c,-c) in (x,y,z), and
         // a step of (0,0,1) in (i,j,k) means a step of (-c,-c,1-c) in (x,y,z), where
-        // c = 1/6.
-        double x1 = x0 - i1 + G3; // Offsets for second corner in (x,y,z) coords
+        // c = 1 / 6.
+
+        // Offsets for second corner in (x,y,z) coords
+        double x1 = x0 - i1 + G3;
         double y1 = y0 - j1 + G3;
         double z1 = z0 - k1 + G3;
-        double x2 = x0 - i2 + 2.0f * G3; // Offsets for third corner in (x,y,z) coords
-        double y2 = y0 - j2 + 2.0f * G3;
-        double z2 = z0 - k2 + 2.0f * G3;
-        double x3 = x0 - 1.0f + 3.0f * G3; // Offsets for last corner in (x,y,z) coords
-        double y3 = y0 - 1.0f + 3.0f * G3;
-        double z3 = z0 - 1.0f + 3.0f * G3;
+
+        // Offsets for third corner in (x,y,z) coords
+        double x2 = x0 - i2 + G3Times2; 
+        double y2 = y0 - j2 + G3Times2;
+        double z2 = z0 - k2 + G3Times2;
+
+        // Offsets for last corner in (x,y,z) coords
+        double x3 = x0 - 1.0f + G3Times3; 
+        double y3 = y0 - 1.0f + G3Times3;
+        double z3 = z0 - 1.0f + G3Times3;
 
         // Work out the hashed gradient indices of the four simplex corners
         int ii = i & 255;
         int jj = j & 255;
         int kk = k & 255;
+
         int gi0 = permMod12[ii + perm[jj + perm[kk]]];
         int gi1 = permMod12[ii + i1 + perm[jj + j1 + perm[kk + k1]]];
         int gi2 = permMod12[ii + i2 + perm[jj + j2 + perm[kk + k2]]];
@@ -303,7 +349,10 @@ public class SimplexNoise
 
             case false:
                 t0 *= t0;
-                n0 = t0 * t0 * Dot(grad3[gi0], x0, y0, z0);
+                // Inlined Dot for mega performance
+
+                n0 = t0 * t0 * (grad3[gi0].x * x0 + grad3[gi0].y * y0 + grad3[gi0].z * z0);
+                //n0 = t0 * t0 * Dot(grad3[gi0], x0, y0, z0);
                 break;
         }
 
@@ -315,7 +364,8 @@ public class SimplexNoise
 
             case false:
                 t1 *= t1;
-                n1 = t1 * t1 * Dot(grad3[gi1], x1, y1, z1);
+                n1 = t1 * t1 * (grad3[gi1].x * x1 + grad3[gi1].y * y1 + grad3[gi1].z * z1);
+                //n1 = t1 * t1 * Dot(grad3[gi1], x1, y1, z1);
                 break;
         }
 
@@ -327,7 +377,8 @@ public class SimplexNoise
 
             case false:
                 t2 *= t2;
-                n2 = t2 * t2 * Dot(grad3[gi2], x2, y2, z2);
+                n2 = t2 * t2 * (grad3[gi2].x * x2 + grad3[gi2].y * y2 + grad3[gi2].z * z2);
+                //n2 = t2 * t2 * Dot(grad3[gi2], x2, y2, z2);
                 break;
         }
 
@@ -339,7 +390,8 @@ public class SimplexNoise
 
             case false:
                 t3 *= t3;
-                n3 = t3 * t3 * Dot(grad3[gi3], x3, y3, z3);
+                n3 = t3 * t3 * (grad3[gi3].x * x3 + grad3[gi3].y * y3 + grad3[gi3].z * z3);
+                //n3 = t3 * t3 * Dot(grad3[gi3], x3, y3, z3);
                 break;
         }
 

@@ -58,6 +58,7 @@ public class Chunk : MonoBehaviour
     private int windingIndex = 0;   // Note that each 'triangle' is actually a winding value, meaning triangle count / 3 = true triangle count
 
     [HideInInspector] public Vector3[] vertices;
+    [HideInInspector] public Vector3[] normals;
     [HideInInspector] public Vector2[] uvs;
     [HideInInspector] public Color[] colours;
     [HideInInspector] public int[] triangles;
@@ -81,6 +82,7 @@ public class Chunk : MonoBehaviour
         meshFilter.mesh = mesh;
 
         vertices = new Vector3[chunkSize * chunkSize * verticesPerFace * layers];  // 4 vertices per face, * 2 for both water and terrain
+        normals = new Vector3[vertices.Length];  // 4 vertices per face, * 2 for both water and terrain
         uvs = new Vector2[vertices.Length];                 
         colours = new Color[vertices.Length];
         triangles = new int[chunkSize * chunkSize * triangleCornersPerFace * layers];     // 6 triangle corners per face (for winding), * 2 for both water and terrain
@@ -110,7 +112,7 @@ public class Chunk : MonoBehaviour
     {
         // There is surely a better way of doing this
         GenerateMemory(fluidNoise, Time.timeSinceLevelLoad, terrainManager.noiseSettings[0]);
-        UpdateMesh(0);
+        UpdateMesh(fluidNoise, 0 );
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -142,7 +144,7 @@ public class Chunk : MonoBehaviour
     // -----------------------------------------------------------------------------------------------------
 
     /// <summary> Take and existing mesh and updates it's vertices without rebuilding it </summary>
-    public void UpdateMesh(int layer)
+    public void UpdateMesh(float[] sourceNoise, int layer)
     {
         verticeIndex = 0;
 
@@ -170,19 +172,20 @@ public class Chunk : MonoBehaviour
 
                 // We simply change the y position to our noise value
                 // Note: this simply unpacks Index2Dto1D and effectivly inlines it as it is far more performant for realtime updating
-                vertices[verticesPlus0].y = fluidNoise[((0 + y) * noiseSize) + 0 + x];
-                vertices[verticesPlus1].y = fluidNoise[((0 + y) * noiseSize) + 1 + x];
-                vertices[verticesPlus2].y = fluidNoise[((1 + y) * noiseSize) + 0 + x];
-                vertices[verticesPlus3].y = fluidNoise[((1 + y) * noiseSize) + 1 + x];
+                vertices[verticesPlus0].y = sourceNoise[((0 + y) * noiseSize) + 0 + x];
+                vertices[verticesPlus1].y = sourceNoise[((0 + y) * noiseSize) + 1 + x];
+                vertices[verticesPlus2].y = sourceNoise[((1 + y) * noiseSize) + 0 + x];
+                vertices[verticesPlus3].y = sourceNoise[((1 + y) * noiseSize) + 1 + x];
 
-                // Update our colours so we get dark troughs and vibrant transparent peaks
+                // Update our colours so we get dark troughs and vibrant peaks
                 colours[verticesPlus0] = Color.Lerp(terrainManager.colours[0], terrainManager.colours[1], vertices[verticesPlus0].y * waveTipScale + waveTipOffset);
                 colours[verticesPlus1] = Color.Lerp(terrainManager.colours[0], terrainManager.colours[1], vertices[verticesPlus1].y * waveTipScale + waveTipOffset);
                 colours[verticesPlus2] = Color.Lerp(terrainManager.colours[0], terrainManager.colours[1], vertices[verticesPlus2].y * waveTipScale + waveTipOffset);
                 colours[verticesPlus3] = Color.Lerp(terrainManager.colours[0], terrainManager.colours[1], vertices[verticesPlus3].y * waveTipScale + waveTipOffset);
 
-                verticeIndex += 4;
-
+                // Selects which 4 vertices to use and on which layer
+                verticeIndex += verticesPerFace * layers;
+                /*
                 // ----------- Land Layer -----------
                 // We don't want to update this layer much
 
@@ -201,15 +204,66 @@ public class Chunk : MonoBehaviour
                 colours[verticesPlus2] = terrainManager.colours[2];
                 colours[verticesPlus3] = terrainManager.colours[2];
 
-                verticeIndex += 4;
+                verticeIndex += 4;*/
             }
         }
 
+        // Back to seb lague's video on this
+        //CalculateNormals();
+
         mesh.SetVertices(vertices);
         mesh.SetColors(colours);
+        //mesh.SetNormals(normals);
 
         mesh.RecalculateNormals();
         //mesh.RecalculateTangents(); // Relates to normals maps, we can get away with not using it here even though we do use them
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+
+    /// <summary> Calculate normals manually instead of using unity's built in method, this allows us more flexibility in what vertices to include such as those in other chunks </summary>
+    public void CalculateNormals()
+    {
+        // Get the total number of true triangles from the winding array
+        int triangleCount = triangles.Length / 3;
+
+        // For all triangles
+        for (int x = 0; x < triangleCount; x++)
+        {
+            int normalTriangleIndex = x * 3;
+
+            int vertexIndex0 = triangles[normalTriangleIndex + 0];
+            int vertexIndex1 = triangles[normalTriangleIndex + 1];
+            int vertexIndex2 = triangles[normalTriangleIndex + 2];
+
+            Vector3 triangleNormal = CalculateNormal(vertexIndex0, vertexIndex1, vertexIndex2);
+
+            // Now that we have the triangle's normal, we need to apply it to it's surrounding vertices
+            normals[vertexIndex0] += triangleNormal;
+            normals[vertexIndex1] += triangleNormal;
+            normals[vertexIndex2] += triangleNormal;
+        }
+
+        // Normalise all the normals (extra normal now)
+        for (int x = 0; x < normals.Length; x++)
+        {
+            normals[x].Normalize();
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+
+    /// <summary> Calculates a single normal for one triangle </summary>
+    public Vector3 CalculateNormal(int indexA, int indexB, int indexC)
+    {
+        Vector3 pointA = vertices[indexA];
+        Vector3 pointB = vertices[indexB];
+        Vector3 pointC = vertices[indexC];
+
+        // Get the cross product
+        Vector3 sideAB = pointB - pointA;
+        Vector3 sideAC = pointC - pointA;
+        return Vector3.Cross(sideAB, sideAC).normalized;
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -337,6 +391,9 @@ public class Chunk : MonoBehaviour
     {
         xChunk = 0;
         zChunk = 0;
+
+        // Some arrays need to be reset
+        Array.Clear(normals, 0, normals.Length);
     }
 
     // -----------------------------------------------------------------------------------------------------

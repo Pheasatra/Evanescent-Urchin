@@ -18,9 +18,9 @@ public class TerrainManager : MonoBehaviour
     // Where all our inactive chunks are stored
     public ChunkPool chunkPool;
 
-    public List<Color> colours = new List<Color>();
+    public Color[] colours;
 
-    //public List<Block> blockVariants = new List<Block>();
+    public TileType[] tileTypes;
 
     public Vector3 windDirection;
 
@@ -33,7 +33,7 @@ public class TerrainManager : MonoBehaviour
     public int worldSeed = 0;
 
     [Header("Noise")]
-    public List<NoiseSettings> noiseSettings = new List<NoiseSettings>();
+    public NoiseSettings[] noiseSettings;
 
     [Space(10)]
 
@@ -91,7 +91,7 @@ public class TerrainManager : MonoBehaviour
         UnityEngine.Random.InitState(worldSeed);
 
         // Update all of our settings
-        for (int x = 0; x < noiseSettings.Count; x++)
+        for (int x = 0; x < noiseSettings.Length; x++)
         {
             noiseSettings[x].Setup();
         }
@@ -103,7 +103,7 @@ public class TerrainManager : MonoBehaviour
     void Update()
     {
         // Update all of our settings realtime so we can play with variables
-        for (int x = 0; x < noiseSettings.Count; x++)
+        for (int x = 0; x < noiseSettings.Length; x++)
         {
             noiseSettings[x].UpdateSubNoise();
         }
@@ -199,33 +199,30 @@ public class TerrainManager : MonoBehaviour
     {
         float output = 0;
 
-        //Vector3 waveDirection;
+        float positionX = x + noiseSettings.xSeed;
+        float positionY = y + noiseSettings.ySeed;
 
-        float positionScaledX = (x + noiseSettings.xSeed) / noiseSettings.scale;
-        float positionScaledY = (y + noiseSettings.ySeed) / noiseSettings.scale;
-        
+        float xCoord;
+        float yCoord;
+
         // For all octaves.
         for (int i = 0; i < noiseSettings.octaves; i++)
         {
             // Value that moves an axis in a direction at a set speed
-            float waveOffset = time * noiseSettings.waveSpeeds[i];
-            //waveDirection = windDirection * waveOffset; // Vector3 calculations are expensive as  f u c c
+            float waveOffsetX = time * (noiseSettings.waveSpeeds[i] * windDirection.x);
+            float waveOffsetY = time * (noiseSettings.waveSpeeds[i] * windDirection.z);
 
-            // !!! octave offsets should be with the seeds in positionScaled, right now they are not subject to scale
-
-            float xCoord = positionScaledX * noiseSettings.frequencies[i] + noiseSettings.octaveOffsets[i].x + waveOffset;
-            float yCoord = positionScaledY * noiseSettings.frequencies[i] + noiseSettings.octaveOffsets[i].y + waveOffset;
+            xCoord = (positionX + noiseSettings.octaveOffsets[i].x) / noiseSettings.scale * noiseSettings.frequencies[i] + waveOffsetX;
+            yCoord = (positionY + noiseSettings.octaveOffsets[i].y) / noiseSettings.scale * noiseSettings.frequencies[i] + waveOffsetY;
 
             //output += GerstnerNoise.GerstnerNoise2D(xCoord, yCoord, waveOffset, currentFrequency, currentAmplitude);  // BROKEN
-
-            // !!! Wait, theoretically we don't need to calculate simplex noise in the for loop, we can just sum the x and y coords and the amplitudes and plug it in last
 
             output += (float)simplexNoise.SimplexNoise2D(xCoord, yCoord) * noiseSettings.amplitudes[i];/*
             output += (float)simplexNoise.SimplexNoise3D(xCoord, yCoord, 0) * noiseSettings.amplitudes[i];
             output += OpenSimplex2.Noise2_UnskewedBase(worldSeed, xCoord, yCoord) * noiseSettings.amplitudes[i];
             output += fastNoiseLite.GetNoise(xCoord, yCoord) * noiseSettings.amplitudes[i];
             output += terrainManager.fastNoise2.GenSingle2D(xCoord, yCoord, worldSeed) * noiseSettings.amplitudes[i];
-            output += SimplexNoiseAll.Noise.Generate(xCoord, yCoord) * noiseSettings.amplitudes[i];*/
+            output += SimplexNoiseAll.Noise.Generate(xCoord, yCoord) * noiseSettings.amplitudes[i]; */
         }
 
         return output;

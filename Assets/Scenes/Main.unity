@@ -2043,18 +2043,31 @@ MonoBehaviour:
   chunkPool: {fileID: 845988333}
   colours:
   - {r: 0, g: 0.28235295, b: 0.3019608, a: 1}
-  - {r: 0, g: 0.57479274, b: 0.8509804, a: 1}
+  - {r: 0.003921569, g: 0.69411767, b: 0.74509805, a: 1}
   - {r: 0, g: 0.5471698, b: 0.13132076, a: 1}
-  windDirection: {x: 0, y: 0, z: 0}
+  tileTypes:
+  - name: Seabed
+    heightRange: -5
+    colour: {r: 0.20986114, g: 0.32627845, b: 0.33962262, a: 1}
+  - name: Shore
+    heightRange: 5
+    colour: {r: 1, g: 0.94402504, b: 0.7028302, a: 1}
+  - name: Plains
+    heightRange: 20
+    colour: {r: 0.0016449263, g: 0.4528302, b: 0, a: 1}
+  - name: Mountains
+    heightRange: 999
+    colour: {r: 0.6886792, g: 0.6886792, b: 0.6886792, a: 1}
+  windDirection: {x: 1, y: 0, z: 0}
   seedRange: 16384
-  manualSeed: 0
+  manualSeed: 1
   worldSeed: 0
   noiseSettings:
   - name: Fluid
     scale: 2
     amplitude: 1
     frequency: 0.1
-    waveSpeed: 0.25
+    waveSpeed: 0.2
     octaves: 3
     persistance: 0.5
     lacunarity: 2
@@ -2069,7 +2082,7 @@ MonoBehaviour:
     octaveOffsets: []
   - name: Land
     scale: 20
-    amplitude: 2
+    amplitude: 5
     frequency: 0.1
     waveSpeed: 0.25
     octaves: 3
