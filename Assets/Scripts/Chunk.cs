@@ -184,8 +184,9 @@ public class Chunk : MonoBehaviour
                 colours[verticesPlus3] = Color.Lerp(terrainManager.colours[0], terrainManager.colours[1], vertices[verticesPlus3].y * waveTipScale + waveTipOffset);
 
                 // Selects which 4 vertices to use and on which layer
-                verticeIndex += verticesPerFace * layers;
-                /*
+                //verticeIndex += verticesPerFace * layer + verticesPerFace * layers;
+                verticeIndex += 4;
+                
                 // ----------- Land Layer -----------
                 // We don't want to update this layer much
 
@@ -204,7 +205,7 @@ public class Chunk : MonoBehaviour
                 colours[verticesPlus2] = terrainManager.colours[2];
                 colours[verticesPlus3] = terrainManager.colours[2];
 
-                verticeIndex += 4;*/
+                verticeIndex += 4;
             }
         }
 
@@ -440,6 +441,35 @@ public class Chunk : MonoBehaviour
         return new Vector3Int(x, y, z);
     }
 
+    // -----------------------------------------------------------------------------------------------------
+
+    /// <summary>  </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public float Lerp(float firstFloat, float secondFloat, float by)
+    {
+        return firstFloat * (1 - by) + secondFloat * by;
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+
+    /// <summary>  </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector2 Lerp(Vector2 firstVector, Vector2 secondVector, float by)
+    {
+        float retX = Lerp(firstVector.x, secondVector.x, by);
+        float retY = Lerp(firstVector.y, secondVector.y, by);
+
+        return new Vector2(retX, retY);
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+
+    /// <summary> Unity's decompiled lerp function </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Color LerpUnclamped(Color a, Color b, float t)
+    {
+        return new Color(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, a.a + (b.a - a.a) * t);
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // Manually take out the trash (some things do not get garbage collected)

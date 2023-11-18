@@ -205,6 +205,8 @@ public class TerrainManager : MonoBehaviour
         float xCoord;
         float yCoord;
 
+        float scale = noiseSettings.scale;
+
         // For all octaves.
         for (int i = 0; i < noiseSettings.octaves; i++)
         {
@@ -212,8 +214,8 @@ public class TerrainManager : MonoBehaviour
             float waveOffsetX = time * (noiseSettings.waveSpeeds[i] * windDirection.x);
             float waveOffsetY = time * (noiseSettings.waveSpeeds[i] * windDirection.z);
 
-            xCoord = (positionX + noiseSettings.octaveOffsets[i].x) / noiseSettings.scale * noiseSettings.frequencies[i] + waveOffsetX;
-            yCoord = (positionY + noiseSettings.octaveOffsets[i].y) / noiseSettings.scale * noiseSettings.frequencies[i] + waveOffsetY;
+            xCoord = (positionX + noiseSettings.octaveOffsets[i].x) / scale * noiseSettings.frequencies[i] + waveOffsetX;
+            yCoord = (positionY + noiseSettings.octaveOffsets[i].y) / scale * noiseSettings.frequencies[i] + waveOffsetY;
 
             //output += GerstnerNoise.GerstnerNoise2D(xCoord, yCoord, waveOffset, currentFrequency, currentAmplitude);  // BROKEN
 
