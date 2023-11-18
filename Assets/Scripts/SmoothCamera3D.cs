@@ -8,7 +8,12 @@ public class SmoothCamera3D : MonoBehaviour
 {
     [Header("References")]
     public Camera mainCamera;
+
+    [Space(10)]
+
     public Transform target;
+    public Transform movementBody;
+    public Transform rotationBody;
 
     [Header("Positioning")]
     private Vector3 shakeOffset;
@@ -27,6 +32,10 @@ public class SmoothCamera3D : MonoBehaviour
 
     float nextRotationX = 0f;
     float nextRotationY = 0f;
+
+    [Space(10)]
+
+    public bool lockRotation = false;
 
     [Header("Zoom")]
     public float baseFov = 60.0f;
@@ -53,6 +62,8 @@ public class SmoothCamera3D : MonoBehaviour
 
     [Space(10)]
 
+    private float inputLock;
+
     private Vector3 desiredPosition;
     private Quaternion currentRotation;
 
@@ -71,25 +82,29 @@ public class SmoothCamera3D : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        switch (SceneManager.sceneManager.gamePaused)
-        {
-            // Unlock cursor when in menus
-            case true:
-                Cursor.lockState = CursorLockMode.None;
-                break;
+        Cursor.lockState = CursorLockMode.None;
 
-            // Lock cursor when in game view
-            case false:
-                Cursor.lockState = CursorLockMode.Locked;
+        switch (Input.GetMouseButtonDown(1))
+        {
+            // Flip lockRotation
+            case true:
+                lockRotation = !lockRotation;
                 break;
         }
 
         ManageShakes();
-        ManageRotation();
         ManageFarZoom();
+        ManagePosition();
+        ManageRotation();
+    }
 
+    // -----------------------------------------------------------------------------------------------------
+
+    /// <summary> Manages the position of the camera </summary>
+    public void ManagePosition()
+    {
         desiredPosition = target.position + shakeOffset;
-        transform.position = Vector3.Lerp(transform.position, desiredPosition, movementStiffness * Time.deltaTime);
+        movementBody.position = Vector3.Lerp(movementBody.position, desiredPosition, movementStiffness * Time.deltaTime);
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -126,20 +141,26 @@ public class SmoothCamera3D : MonoBehaviour
     /// <summary> Based on mousepad inputs, rotates the camera smoothly </summary>
     private void ManageRotation()
     {
-        // Get mouse inputs multiplied by sensitivity
-        nextRotationX += Input.GetAxis("Mouse X") * currentSensitivityX;
-        nextRotationY += Input.GetAxis("Mouse Y") * currentSensitivityY;
+        switch (lockRotation)
+        {
+            // Only rotate if not rotation locked
+            case true:
+                // Get mouse inputs multiplied by sensitivity
+                nextRotationX += Input.GetAxis("Mouse X") * currentSensitivityX;
+                nextRotationY += Input.GetAxis("Mouse Y") * currentSensitivityY;
+                break;
+        }
 
         // Clamp Y so we don't go australian in this bitch
         nextRotationY = Mathf.Clamp(nextRotationY, minimumY, maximumY);
 
         // Produces in-between rotations for when there is no input this frame (Low keyboard update rate) and when input fully stops (Smoothes camera at start and destination)
         // We can also use localEulerAngles here, but Quanterions reduce the risk of gimbal lock
-        transform.rotation = Quaternion.Lerp(Quaternion.Euler(transform.eulerAngles.x, transform.eulerAngles.y, 0), Quaternion.Euler(-nextRotationY, nextRotationX, 0), rotationStiffness * Time.deltaTime);
+        rotationBody.rotation = Quaternion.Lerp(Quaternion.Euler(rotationBody.eulerAngles.x, rotationBody.eulerAngles.y, 0), Quaternion.Euler(-nextRotationY, nextRotationX, 0), rotationStiffness * Time.deltaTime);
 
         // Less useful / functional alternatives down here
-        //transform.localEulerAngles = new Vector3(-rotationY, rotationX, 0);
-        //transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(-nextRotationY, nextRotationX, 0), rotationStiffness * Time.deltaTime);
+        //rotationBody.localEulerAngles = new Vector3(-rotationY, rotationX, 0);
+        //rotationBody.rotation = Quaternion.Lerp(rotationBody.rotation, Quaternion.Euler(-nextRotationY, nextRotationX, 0), rotationStiffness * Time.deltaTime);
     }
 
     // -----------------------------------------------------------------------------------------------------
