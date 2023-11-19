@@ -112,7 +112,7 @@ public class Chunk : MonoBehaviour
     {
         // There is surely a better way of doing this
         GenerateMemory(fluidNoise, Time.timeSinceLevelLoad, terrainManager.noiseSettings[0]);
-        UpdateMesh(fluidNoise, 0 );
+        UpdateMesh(fluidNoise, 0);
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -125,7 +125,7 @@ public class Chunk : MonoBehaviour
 
         Vector3 positionOffset = new Vector3(xChunk * chunkSize , 0.0f, zChunk * chunkSize);
 
-        // !!! Try parralel for and see if it's faster (And WebGL compatible)
+        // !!! Try paralle for and see if it's faster (And WebGL compatible)
 
         // For the length of simplex noise
         for (int i = 0; i < output.Length; i++)
@@ -491,26 +491,4 @@ public class Chunk : MonoBehaviour
             Handles.DrawWireCube(debug[x] + transform.position, new Vector3(chunkUnitSize, chunkUnitSize, chunkUnitSize) / 4);
         }
     }*/
-}
-
-// -----------------------------------------------------------------------------------------------------
-
-[System.Serializable]
-public struct VertexOffsets
-{
-    [Tooltip("Top Left")]
-    public Vector3 vertex1;
-    public Vector3 vertex2;
-    public Vector3 vertex3;
-    public Vector3 vertex4;
-
-    // -----------------------------------------------------------------------------------------------------
-
-    public VertexOffsets(Vector3 vertex1, Vector3 vertex2, Vector3 vertex3, Vector3 vertex4)
-    {
-        this.vertex1 = vertex1;
-        this.vertex2 = vertex2;
-        this.vertex3 = vertex3;
-        this.vertex4 = vertex4;
-    }
 }

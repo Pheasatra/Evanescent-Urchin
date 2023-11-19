@@ -107,8 +107,8 @@ Material:
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
-    - _Lerp_A: 1.25
-    - _Lerp_B: 0.75
+    - _Lerp_A: 2
+    - _Lerp_B: 1
     - _Metallic: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.005
@@ -124,7 +124,7 @@ Material:
     - _SrcBlendAlpha: 1
     - _Star_Brightness: 1
     - _Surface: 0
-    - _Time_Divider: 1
+    - _Time_Divider: 2
     - _Total_Brightness: 1
     - _WorkflowMode: 1
     - _ZWrite: 1
@@ -134,7 +134,7 @@ Material:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _Sky_Colour_Bottom: {r: 0, g: 0.11764706, b: 0.5647059, a: 1}
-    - _Sky_Colour_Top: {r: 0.6415094, g: 0.6415094, b: 0.6415094, a: 0}
+    - _Sky_Colour_Top: {r: 0.24110004, g: 0.6179416, b: 0.8113208, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
     - _Star_Offset: {r: 1, g: 1, b: 0, a: 0}
     - _Star_Tiling: {r: 1, g: 1, b: 0, a: 0}
