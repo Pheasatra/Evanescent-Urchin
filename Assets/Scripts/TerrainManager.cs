@@ -235,34 +235,35 @@ public class TerrainManager : MonoBehaviour
     /// <summary> Generates 3D noise with octaves </summary>
     public float OctaveNoise(float x, float y, float z, float time, NoiseSettings noiseSettings)
     {
-        float output = 0;
+        float output = 0; 
+        
+        float positionX = x + noiseSettings.xSeed;
+        float positionY = y + noiseSettings.ySeed;
+        float positionZ = z + noiseSettings.zSeed;
 
-        float currentAmplitude = noiseSettings.amplitude;
-        float currentFrequency = noiseSettings.frequency;
-        float currentWaveSpeed = noiseSettings.waveSpeed;
+        float xCoord;
+        float yCoord;
+        float zCoord;
 
-        Vector3 waveDirection;
+        float scale = noiseSettings.scale;
 
         // For all octaves.
         for (int i = 0; i < noiseSettings.octaves; i++)
         {
-            float waveOffset = time * currentWaveSpeed;
-            waveDirection = windDirection * waveOffset;
+            // Value that moves an axis in a direction at a set speed
+            float waveOffsetX = time * (noiseSettings.waveSpeeds[i] * windDirection.x);
+            float waveOffsetY = time * (noiseSettings.waveSpeeds[i] * windDirection.y);
+            float waveOffsetZ = time * (noiseSettings.waveSpeeds[i] * windDirection.z);
 
-            // !!!! OPTIMISE, precalculate repeated operations
-            float xCoord = (x + noiseSettings.xSeed) / noiseSettings.scale * currentFrequency + noiseSettings.octaveOffsets[i].x + waveDirection.x;
-            float yCoord = (y + noiseSettings.ySeed) / noiseSettings.scale * currentFrequency + noiseSettings.octaveOffsets[i].y + waveDirection.y;
-            float zCoord = (z + noiseSettings.zSeed) / noiseSettings.scale * currentFrequency + noiseSettings.octaveOffsets[i].z + waveDirection.z;
+            xCoord = (positionX + noiseSettings.octaveOffsets[i].x) / scale * noiseSettings.frequencies[i] + waveOffsetX;
+            yCoord = (positionY + noiseSettings.octaveOffsets[i].y) / scale * noiseSettings.frequencies[i] + waveOffsetY;
+            zCoord = (positionZ + noiseSettings.octaveOffsets[i].z) / scale * noiseSettings.frequencies[i] + waveOffsetZ;
 
-            //output += simplexNoise.SimplexNoise3D(xCoord, yCoord, zCoord) / scale * currentFrequency * currentAmplitude;
-            //output += OpenSimplex2.Noise3_ImproveXZ(worldSeed, xCoord, yCoord, zCoord) / scale * currentFrequency * currentAmplitude;
-            //output += fastNoiseLite.GetNoise(xCoord, yCoord, zCoord) / scale * currentFrequency * currentAmplitude;
-            output += fastNoise2.GenSingle3D(xCoord, yCoord, zCoord, worldSeed) / noiseSettings.scale * currentFrequency * currentAmplitude;
-            //output += SimplexNoiseAll.Noise.Generate(xCoord, yCoord, zCoord) / scale * currentFrequency * currentAmplitude;
-
-            currentAmplitude *= noiseSettings.persistance;
-            currentFrequency *= noiseSettings.lacunarity;
-            currentWaveSpeed /= noiseSettings.waveSubspeed;
+            //output += simplexNoise.SimplexNoise3D(xCoord, yCoord, zCoord) * noiseSettings.amplitudes[i];
+            //output += OpenSimplex2.Noise3_ImproveXZ(worldSeed, xCoord, yCoord, zCoord) * noiseSettings.amplitudes[i];
+            //output += fastNoiseLite.GetNoise(xCoord, yCoord, zCoord) * noiseSettings.amplitudes[i];
+            output += fastNoise2.GenSingle3D(xCoord, yCoord, zCoord, worldSeed) * noiseSettings.amplitudes[i];
+            //output += SimplexNoiseAll.Noise.Generate(xCoord, yCoord, zCoord) * noiseSettings.amplitudes[i];
         }
 
         return output;
@@ -275,6 +276,21 @@ public class TerrainManager : MonoBehaviour
     {
         chunks.TryGetValue(chunkKey, out Chunk containerChunk);
         return containerChunk;
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+
+    /// <summary> Rounds the position and divides it by tilesPerUnit </summary>
+    public Vector3Int FindTilePosition(Vector3 position)
+    {
+        return Vector3Int.RoundToInt(RoundVector(position) / chunkUnitSize);
+    }
+
+    // -----------------------------------------------------------------------------------------------------
+
+    public Vector3 RoundVector(Vector3 vector)
+    {
+        return new Vector3(Mathf.RoundToInt(vector.x), Mathf.RoundToInt(vector.y));
     }
 
     // -----------------------------------------------------------------------------------------------------

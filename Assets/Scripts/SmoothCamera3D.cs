@@ -84,7 +84,7 @@ public class SmoothCamera3D : MonoBehaviour
     {
         Cursor.lockState = CursorLockMode.None;
 
-        switch (Input.GetMouseButtonDown(1))
+        switch (Input.GetMouseButtonDown(1) || Input.GetMouseButtonUp(1))
         {
             // Flip lockRotation
             case true:
